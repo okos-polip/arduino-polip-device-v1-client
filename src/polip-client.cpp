@@ -36,10 +36,10 @@ typedef struct _ret {
 //  Private Function Prototypes
 //==============================================================================
 
-static polip_ret_code_t _requestTemplate(const polip_device_t* dev, JsonDocument& doc, 
+static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, const char* endpoint, bool skipValue = false, 
         bool skipTag = false);
-static void _packRequest(const polip_device_t* dev, JsonDocument& doc, 
+static void _packRequest(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, bool skipValue = false, bool skipTag = false);
 static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint);
 static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc);
@@ -49,16 +49,17 @@ static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc);
 //==============================================================================
 
 polip_ret_code_t polip_checkServerStatus() {
+    WiFiClient client;
     HTTPClient http;
 
-    http.begin(POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/");
+    http.begin(client, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/");
     int code = http.GET();
     http.end();
 
     return (code == 200) ? POLIP_OK : POLIP_ERROR_SERVER_ERROR;
 }
 
-polip_ret_code_t polip_getState(const polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true"
     );
@@ -66,9 +67,9 @@ polip_ret_code_t polip_getState(const polip_device_t* dev, JsonDocument& doc, co
     return status;
 }
 
-polip_ret_code_t polip_pushState(const polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     if (!doc.containsKey("state")) {
-        return false;
+        return POLIP_ERROR_LIB_REQUEST;
     }
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
@@ -78,9 +79,9 @@ polip_ret_code_t polip_pushState(const polip_device_t* dev, JsonDocument& doc, c
     return status;
 }
 
-polip_ret_code_t polip_pushError(const polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     if (!doc.containsKey("message") || !doc.containsKey("code")) {
-        return false;
+        return POLIP_ERROR_LIB_REQUEST;
     }
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
@@ -90,9 +91,9 @@ polip_ret_code_t polip_pushError(const polip_device_t* dev, JsonDocument& doc, c
     return status;
 }
 
-polip_ret_code_t polip_pushSensors(const polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     if (!doc.containsKey("sense")) {
-        return false;
+        return POLIP_ERROR_LIB_REQUEST;
     }
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
@@ -102,7 +103,7 @@ polip_ret_code_t polip_pushSensors(const polip_device_t* dev, JsonDocument& doc,
     return status;
 }
 
-polip_ret_code_t polip_getValue(const polip_device_t* dev, const char* timestamp) {
+polip_ret_code_t polip_getValue(polip_device_t* dev, const char* timestamp) {
     StaticJsonDocument<INTERNAL_DOC_BUFFER_SIZE> doc;
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
@@ -122,7 +123,7 @@ polip_ret_code_t polip_getValue(const polip_device_t* dev, const char* timestamp
 //  Private Function Implementation
 //==============================================================================
 
-static polip_ret_code_t _requestTemplate(const polip_device_t* dev, JsonDocument& doc, 
+static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, const char* endpoint, bool skipValue, bool skipTag) {
     _packRequest(dev, doc, timestamp, skipValue, skipTag);
     _ret_t ret = _sendPostRequest(doc, endpoint);
@@ -152,7 +153,7 @@ static polip_ret_code_t _requestTemplate(const polip_device_t* dev, JsonDocument
     return POLIP_OK; // Document updates returned by reference
 }
 
-static void _packRequest(const polip_device_t* dev, JsonDocument& doc, 
+static void _packRequest(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, bool skipValue, bool skipTag) {
 
     doc["serial"] = dev->serialStr; 
@@ -176,9 +177,10 @@ static void _packRequest(const polip_device_t* dev, JsonDocument& doc,
 static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
     _ret_t retVal;
     char buffer[ARBITRARY_MSG_BUFFER_SIZE];
+    WiFiClient client;
     HTTPClient http;
 
-    http.begin(endpoint);
+    http.begin(client, endpoint);
     http.addHeader("Content-Type", "text/json");
 
     serializeJson(doc, buffer);

@@ -19,8 +19,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <Crypto.h>
-#include <HTTPClient.h>
+#include <ArduinoCrypto.h>
+#include <WiFiClient.h>
+#include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 
 //==============================================================================
@@ -52,7 +53,8 @@ typedef enum _polip_ret_code {
     POLIP_ERROR_TAG_MISMATCH,
     POLIP_ERROR_VALUE_MISMATCH,
     POLIP_ERROR_RESPONSE_DESERIALIZATION,
-    POLIP_ERROR_SERVER_ERROR
+    POLIP_ERROR_SERVER_ERROR,
+    POLIP_ERROR_LIB_REQUEST
 } polip_ret_code_t;
 
 //==============================================================================
@@ -82,7 +84,7 @@ typedef struct _polip_device {
  * Checks server health check end-point
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_checkServerStatus();
+polip_ret_code_t polip_checkServerStatus(WiFiClient& clien);
 /**
  * Gets the current state of the device from the server
  * @param dev pointer to device 
@@ -90,7 +92,7 @@ polip_ret_code_t polip_checkServerStatus();
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_getState(const polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
  * Sets the current state of the device to the server
  * Its recommended to first get state from server before pushing in
@@ -101,7 +103,7 @@ polip_ret_code_t polip_getState(const polip_device_t* dev, JsonDocument& doc, co
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_pushState(const polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
  * Pushes a notification/error to the server
  * @param dev pointer to device 
@@ -109,7 +111,7 @@ polip_ret_code_t polip_pushState(const polip_device_t* dev, JsonDocument& doc, c
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_pushError(const polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
  * Pushes sensor state to the server
  * @param dev pointer to device 
@@ -117,15 +119,16 @@ polip_ret_code_t polip_pushError(const polip_device_t* dev, JsonDocument& doc, c
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_pushSensors(const polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
  * Gets message identifier value from server (used internally for synchronization)
+ * @param client is reference to external 
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_getValue(const polip_device_t* dev, const char* timestamp);
+polip_ret_code_t polip_getValue(polip_device_t* dev, const char* timestamp);
 
 //==============================================================================
 

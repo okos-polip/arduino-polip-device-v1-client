@@ -13,6 +13,7 @@
 // Install ESP8266 Board in Arduino IDE
 // Install WiFiManager library in Arduino IDE
 // Install Arduino Crypto library in Arduino IDE
+//      (I had to manually rename the library from Crypto.h to ArduinoCrypto.h)
 
 //==============================================================================
 //  Libraries
@@ -20,6 +21,7 @@
 
 #include <Arduino.h>
 #include <WiFiManager.h>
+#include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <polip-client.h>
@@ -91,7 +93,7 @@ void setup() {
     wifiManager.autoConnect("AP-Polip-Device-Setup");
 
     polipDevice.serialStr = SERIAL_STR;
-    polipDevice.keyStr = KEY_STR;
+    polipDevice.keyStr = (const uint8_t*)KEY_STR;
     polipDevice.keyStrLen = strlen(KEY_STR);
     polipDevice.hardwareStr = HARDWARE_STR;
     polipDevice.firmwareStr = FIRMWARE_STR;
