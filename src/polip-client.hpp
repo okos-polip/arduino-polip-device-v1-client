@@ -31,18 +31,20 @@
 //! Fixed device ingest server URL 
 //TODO this should be a domain name not an IP address
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
-#define POLIP_DEVICE_INGEST_SERVER_URL      "http://10.0.0.216:3002"
+#define POLIP_DEVICE_INGEST_SERVER_URL      "http://10.0.0.216:3020"
 #endif
 
 //! Minimum JSON doc size, larger if state or sense is substatial
 #define POLIP_MIN_RECOMMENDED_BUFFER_SIZE   (1024)
+
+#define POLIP_VERBOSE_DEBUG                 (true)
 
 //==============================================================================
 //  Preprocessor Macros
 //==============================================================================
 
 //! Standard format for hardware and firmware version strings
-#define POLIP_VERSION_STD_FORMAT(major,minor,patch) ("" #major "." #minor "." #patch)
+#define POLIP_VERSION_STD_FORMAT(major,minor,patch) ("v" #major "." #minor "." #patch)
 
 //==============================================================================
 //  Enumerated Constants
@@ -84,7 +86,7 @@ typedef struct _polip_device {
  * Checks server health check end-point
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_checkServerStatus(WiFiClient& clien);
+polip_ret_code_t polip_checkServerStatus();
 /**
  * Gets the current state of the device from the server
  * @param dev pointer to device 
@@ -128,7 +130,7 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_getValue(polip_device_t* dev, const char* timestamp);
+polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 
 //==============================================================================
 

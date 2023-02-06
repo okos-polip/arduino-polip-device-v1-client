@@ -14,6 +14,7 @@
 // Install WiFiManager library in Arduino IDE
 // Install Arduino Crypto library in Arduino IDE
 //      (I had to manually rename the library from Crypto.h to ArduinoCrypto.h)
+// Install NTPClient in Arduino IDE
 
 //==============================================================================
 //  Libraries
@@ -25,6 +26,8 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <polip-client.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 //==============================================================================
 //  Preprocessor Constants
@@ -34,7 +37,7 @@
 #define RESET_BTN_PIN                   (D0)
 #define STATUS_LED_PIN                  (D6)
 
-#define RESET_BTN_TIME_THRESHOLD        (100L)
+#define RESET_BTN_TIME_THRESHOLD        (200L)
 #define POLL_TIME_THRESHOLD             (1000L)
 
 //==============================================================================
@@ -75,6 +78,11 @@ static unsigned long pollTime;
 
 static StaticJsonDocument<512> doc;
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0);
+
+//TODO error status monitor
+
 //==============================================================================
 //  MAIN
 //==============================================================================
@@ -92,11 +100,27 @@ void setup() {
 
     wifiManager.autoConnect("AP-Polip-Device-Setup");
 
+    timeClient.begin();
+
+    Serial.println("Hardware Setup Finished");
+
     polipDevice.serialStr = SERIAL_STR;
     polipDevice.keyStr = (const uint8_t*)KEY_STR;
     polipDevice.keyStrLen = strlen(KEY_STR);
     polipDevice.hardwareStr = HARDWARE_STR;
     polipDevice.firmwareStr = FIRMWARE_STR;
+    polipDevice.skipTagCheck = true;
+
+    Serial.println("Attempting connection with Okos Polip Device Ingest Service");
+    bool wait = true;
+    while (wait) {
+        wait = (POLIP_OK != polip_checkServerStatus());
+        if (wait) {
+            Serial.println("Failed to connect. Retrying...");
+            delay(500);
+        }
+    }
+    Serial.println("Connected");
 
     pollTime = resetTime = millis();
 
@@ -110,33 +134,42 @@ void loop() {
     // We do most things against soft timers in the main loop
     unsigned long currentTime = millis();
 
+    // Refresh time
+    timeClient.update();
+
     // Push state to sever
     if (flag_stateChanged) {
-        const char* timestamp = "";
+        String timestamp = timeClient.getFormattedTime();
         doc.clear();
         JsonObject stateObj = doc.createNestedObject("state");
-        stateObj["switch"] = currentState;
-        polip_ret_code_t polipCode = polip_pushState(&polipDevice, doc, timestamp);
+        stateObj["power"] = currentState;
+        polip_ret_code_t polipCode = polip_pushState(&polipDevice, doc, timestamp.c_str());
 
         if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
             flag_getValue = true;
         } else {
             flag_stateChanged = false;
+            pollTime = currentTime;
         }
     }
 
     // Poll server for state changes
     if (!flag_stateChanged && (currentTime - pollTime) >= POLL_TIME_THRESHOLD) {
-        const char* timestamp = "";
-        polip_ret_code_t polipCode = polip_getState(&polipDevice, doc, timestamp);
+        String timestamp = timeClient.getFormattedTime();
+        doc.clear();
+        polip_ret_code_t polipCode = polip_getState(&polipDevice, doc, timestamp.c_str());
 
         if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
+            Serial.println("Error: Value Mismatch");
             flag_getValue = true;
         } else {
             pollTime = currentTime;
             if (polipCode == POLIP_OK) {
                 JsonObject stateObj = doc["state"];
-                currentState = stateObj["switch"];
+                currentState = stateObj["power"];
+            } else {
+                Serial.print("Error server during POLL : ");
+                Serial.println(polipCode);
             }
         }
     }
@@ -144,8 +177,9 @@ void loop() {
     // Attempt to get sync value from server
     if (flag_getValue) {
         flag_getValue = false;
-        const char* timestamp = "";
-        polip_getValue(&polipDevice, timestamp);
+        String timestamp = timeClient.getFormattedTime();
+        doc.clear();
+        polip_getValue(&polipDevice, doc, timestamp.c_str());
     }
 
     // Serial debugging interface provides full state control
@@ -166,6 +200,7 @@ void loop() {
             String str = String(rxBuffer);
 
             if (str == "reset") {
+                Serial.println("Debug Reset Requested");
                 flag_reset = true;
             } else if (str == "state?") {
                 Serial.print(F("STATE = "));
@@ -187,6 +222,7 @@ void loop() {
         resetTime = currentTime;
     } else if (btnState && !prevBtnState) {
         if ((currentTime - resetTime) >= RESET_BTN_TIME_THRESHOLD) {
+            Serial.println("Reset Button Held");
             flag_reset = true;
         }
         // Otherwise button press was debounced.
@@ -196,9 +232,14 @@ void loop() {
      // Reset State Machine
     if (flag_reset) {
         flag_reset = false;
-        Serial.println("Button Held");
         Serial.println("Erasing Config, restarting");
         wifiManager.resetSettings();
         ESP.restart();
     }
+
+    // Update physical state
+    setSwitchState(currentState);
+    setStatusLED(false);
+
+    delay(1);
 }
