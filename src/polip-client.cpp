@@ -42,6 +42,7 @@ static void _packRequest(polip_device_t* dev, JsonDocument& doc,
         const char* timestamp, bool skipValue = false, bool skipTag = false);
 static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint);
 static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc);
+static void _array2string(uint8_t array[], unsigned int len, char buffer[]);
 
 //==============================================================================
 //  Public Function Implementation
@@ -133,7 +134,7 @@ polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const ch
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value", 
         true, // skip value in request pack 
-        true  // skip tag in request pack
+        true  // skip tag in request pack, response check
     );
 
     if (status == POLIP_OK) {
@@ -165,8 +166,8 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
         }
     }
 
-    if (!dev->skipTagCheck) {
-        const char* oldTag = doc["tag"]; //TODO need to copy out
+    if (!skipTag && !dev->skipTagCheck) {
+        const char* oldTag = doc["tag"];
         doc["tag"] = "0";
         _computeTag(dev->keyStr, dev->keyStrLen, doc);
 
@@ -248,5 +249,18 @@ static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc) {
     uint8_t authCode[SHA256HMAC_SIZE];
     hmac.doFinal(authCode);
 
-    doc["tag"] = authCode; // TODO probably need to copy this into heap / doc
+    char authStr[SHA256HMAC_SIZE*2 + 1];
+    _array2string(authCode, SHA256HMAC_SIZE, authStr);
+
+    doc["tag"] = authStr;
+}
+
+static void _array2string(uint8_t array[], unsigned int len, char buffer[]) {
+    for (unsigned int i = 0; i < len; i++) {
+        uint8_t nib1 = (array[i] >> 4) & 0x0F;
+        uint8_t nib2 = (array[i] >> 0) & 0x0F;
+        buffer[i*2+0] = nib1  < 0xA ? '0' + nib1  : 'a' + nib1 - 0xA;
+        buffer[i*2+1] = nib2  < 0xA ? '0' + nib2  : 'a' + nib2 - 0xA;
+    }
+    buffer[len*2] = '\0';
 }

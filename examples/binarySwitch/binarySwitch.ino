@@ -109,7 +109,7 @@ void setup() {
     polipDevice.keyStrLen = strlen(KEY_STR);
     polipDevice.hardwareStr = HARDWARE_STR;
     polipDevice.firmwareStr = FIRMWARE_STR;
-    polipDevice.skipTagCheck = true;
+    polipDevice.skipTagCheck = false;
 
     Serial.println("Attempting connection with Okos Polip Device Ingest Service");
     bool wait = true;
@@ -179,7 +179,11 @@ void loop() {
         flag_getValue = false;
         String timestamp = timeClient.getFormattedTime();
         doc.clear();
-        polip_getValue(&polipDevice, doc, timestamp.c_str());
+        polip_ret_code_t polipCode = polip_getValue(&polipDevice, doc, timestamp.c_str());
+        if (polipCode != POLIP_OK) {
+            Serial.print("Error server during Get Value : ");
+                Serial.println(polipCode);
+        }
     }
 
     // Serial debugging interface provides full state control
