@@ -20,7 +20,7 @@
 //  Preprocessor Constants
 //==============================================================================
 
-#define ARBITRARY_MSG_BUFFER_SIZE   (512)   //! Serialized c-string max size
+#define ARBITRARY_MSG_BUFFER_SIZE       (512)
 
 //==============================================================================
 //  Data Structure Declaration
@@ -28,7 +28,7 @@
 
 typedef struct _ret {
     int httpCode;                       //! HTTP server status on POST
-    DeserializationError jsonCode;      //! Serializer status on deserialization
+    bool jsonCode;                      //! Serializer status on deserialization
 } _ret_t;
 
 //==============================================================================
@@ -50,10 +50,6 @@ static void _array2string(uint8_t array[], unsigned int len, char buffer[]);
 
 polip_ret_code_t polip_checkServerStatus() {
 
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Check Server Status:");
-#endif
-
     WiFiClient client;
     HTTPClient http;
 
@@ -65,10 +61,6 @@ polip_ret_code_t polip_checkServerStatus() {
 }
 
 polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
-
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Get State:");
-#endif
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true"
@@ -82,10 +74,6 @@ polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const c
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Push State: ");
-#endif
-
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/push"
     );
@@ -97,10 +85,6 @@ polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const c
     if (!doc.containsKey("message") || !doc.containsKey("code")) {
         return POLIP_ERROR_LIB_REQUEST;
     }
-
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Push Error:");
-#endif
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error"
@@ -114,10 +98,6 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Push Sensors:");
-#endif
-
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/sense"
     );
@@ -126,11 +106,6 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
 }
 
 polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
-
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.println("Get Value:");
-#endif
-
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
         POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value", 
         true, // skip value in request pack 
@@ -153,7 +128,7 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
     _packRequest(dev, doc, timestamp, skipValue, skipTag);
     _ret_t ret = _sendPostRequest(doc, endpoint);
 
-    if (ret.jsonCode != DeserializationError::Ok) {
+    if (ret.jsonCode) {
         return POLIP_ERROR_RESPONSE_DESERIALIZATION;
     }
 
@@ -228,10 +203,6 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
     serializeJson(doc, buffer);
     Serial.print("RX = ");
     Serial.println(buffer);
-    // Serial.print("HTTP Code = ");
-    // Serial.println((int)retVal.httpCode);
-    // Serial.print("JSON Code = ");
-    // Serial.println(retVal.jsonCode.c_str());
 #endif
 
     http.end();

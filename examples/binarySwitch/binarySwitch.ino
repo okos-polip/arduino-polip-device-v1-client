@@ -21,13 +21,13 @@
 //==============================================================================
 
 #include <Arduino.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
 #include <WiFiManager.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <polip-client.h>
-#include <NTPClient.h>
-#include <WiFiUdp.h>
+#include <ESP8266HTTPClient.h>
 
 //==============================================================================
 //  Preprocessor Constants
@@ -35,7 +35,6 @@
 
 #define SWITCH_PIN                      (LED_BUILTIN)
 #define RESET_BTN_PIN                   (D0)
-#define STATUS_LED_PIN                  (D6)
 
 #define RESET_BTN_TIME_THRESHOLD        (200L)
 #define POLL_TIME_THRESHOLD             (1000L)
@@ -46,7 +45,6 @@
 
 #define readResetBtnState() ((bool)digitalRead(RESET_BTN_PIN))
 #define setSwitchState(state) (digitalWrite(SWITCH_PIN, (bool)state))
-#define setStatusLED(state) (digitalWrite(STATUS_LED_PIN, (bool)state))
 
 //==============================================================================
 //  Declared Constants
@@ -68,6 +66,7 @@ static unsigned long resetTime;
 static bool flag_stateChanged = false;
 static bool flag_reset = false;
 static bool flag_getValue = false;
+static bool flag_error = false;
 static bool prevBtnState = false;
 
 static char rxBuffer[50];
@@ -81,8 +80,6 @@ static StaticJsonDocument<512> doc;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0);
 
-//TODO error status monitor
-
 //==============================================================================
 //  MAIN
 //==============================================================================
@@ -92,11 +89,8 @@ void setup() {
     Serial.flush();
 
     pinMode(SWITCH_PIN, OUTPUT);
-    pinMode(STATUS_LED_PIN, OUTPUT);
     pinMode(RESET_BTN_PIN, INPUT);
-
     setSwitchState(currentState);
-    setStatusLED(false);
 
     wifiManager.autoConnect("AP-Polip-Device-Setup");
 
@@ -150,6 +144,10 @@ void loop() {
         } else {
             flag_stateChanged = false;
             pollTime = currentTime;
+
+            if (polipCode != POLIP_OK) {
+                flag_error = true;
+            }
         }
     }
 
@@ -170,6 +168,7 @@ void loop() {
             } else {
                 Serial.print("Error server during POLL : ");
                 Serial.println(polipCode);
+                flag_error = true;
             }
         }
     }
@@ -182,7 +181,8 @@ void loop() {
         polip_ret_code_t polipCode = polip_getValue(&polipDevice, doc, timestamp.c_str());
         if (polipCode != POLIP_OK) {
             Serial.print("Error server during Get Value : ");
-                Serial.println(polipCode);
+            Serial.println(polipCode);
+            flag_error = true;
         }
     }
 
@@ -212,6 +212,13 @@ void loop() {
             } else if (str == "toggle") {
                 flag_stateChanged = true;
                 currentState = !currentState;
+            } else if (str == "error?") {
+                if (flag_error) {
+                    Serial.println("Error with PolipLib");
+                } else {
+                    Serial.println("No Error");
+                }
+                flag_error = false;
             } else {
                 Serial.print(F("Error - Invalid Command ~ `"));
                 Serial.print(str);
@@ -243,7 +250,5 @@ void loop() {
 
     // Update physical state
     setSwitchState(currentState);
-    setStatusLED(false);
-
     delay(1);
 }
