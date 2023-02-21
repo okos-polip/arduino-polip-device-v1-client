@@ -4,7 +4,6 @@
  * @brief Polip Client
  * @version 0.1
  * @date 2022-10-20
- * 
  * @copyright Copyright (c) 2022
  * 
  * Polip-lib to communicate with Okos Polip home automation server.
@@ -31,36 +30,104 @@
 //! Fixed device ingest server URL 
 //TODO this should be a domain name not an IP address
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
-#define POLIP_DEVICE_INGEST_SERVER_URL      "http://10.0.0.216:3020"
+#define POLIP_DEVICE_INGEST_SERVER_URL              "http://10.0.0.216:3020"
 #endif
 
 //! Minimum JSON doc size, larger if state or sense is substatial
-#define POLIP_MIN_RECOMMENDED_BUFFER_SIZE   (1024)
+#ifndef POLIP_MIN_RECOMMENDED_DOC_SIZE
+#define POLIP_MIN_RECOMMENDED_DOC_SIZE              (1024)
+#endif
 
-#define POLIP_VERBOSE_DEBUG                 (true)
+//! Allows POLIP lib to print out debug information on serial bus
+#ifndef POLIP_VERBOSE_DEBUG
+#define POLIP_VERBOSE_DEBUG                         (false)
+#endif
+
+//! Minimum buffer size, larger if state or sense is substatial
+#ifndef POLIP_ARBITRARY_MSG_BUFFER_SIZE
+#define POLIP_ARBITRARY_MSG_BUFFER_SIZE             (512)
+#endif
+
+//! Periodic poll of server device state
+#ifndef POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD
+#define POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD     (1000L)
+#endif
+
+//! Periodic oush of device sensors
+#ifndef POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD
+#define POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD     (1000L)
+#endif
 
 //==============================================================================
 //  Preprocessor Macros
 //==============================================================================
 
-//! Standard format for hardware and firmware version strings
+#ifndef F
+#define F(arg) (arg)
+#endif
+
+/**
+ * Standard format for hardware and firmware version strings 
+ */
 #define POLIP_VERSION_STD_FORMAT(major,minor,patch) ("v" #major "." #minor "." #patch)
+
+#define POLIP_WORKFLOW_STATE_CHANGED(workflowPtr) {                             \
+    (workflowPtr)->flags.stateChanged = true;                                   \
+}
+
+#define POLIP_WORKFLOW_SENSE_CHANGED(workflowPtr) {                             \
+    (workflowPtr)->flags.senseChanged = true;                                   \
+}
+
+#define POLIP_WORKFLOW_IN_ERROR(workflowPtr) ((workflowPtr)->flags.error != POLIP_OK)
+
+#define POLIP_WORKFLOW_ACK_ERROR(workflowPtr) {                                 \
+    (workflowPtr)->flags.error = POLIP_OK;                                      \
+}
+
+#define POLIP_BLOCK_AWAIT_SERVER_OK() {                                         \
+    Serial.println(F("Connecting to Okos Polip Device Ingest Service"));        \
+    bool wait = true;                                                           \
+    while (wait) {                                                              \
+        wait = (POLIP_OK != polip_checkServerStatus());                         \
+        if (wait) {                                                             \
+            Serial.println(F("Failed to connect. Retrying..."));                \
+            delay(500);                                                         \
+        }                                                                       \
+    }                                                                           \
+    Serial.println(F("Connected"));                                             \
+}
 
 //==============================================================================
 //  Enumerated Constants
 //==============================================================================
 
+/**
+ * Errors generated during polip function operation (comprehensive)
+ * Not all routines will generate all errors.
+ */
 typedef enum _polip_ret_code {
     POLIP_OK,
     POLIP_ERROR_TAG_MISMATCH,
     POLIP_ERROR_VALUE_MISMATCH,
     POLIP_ERROR_RESPONSE_DESERIALIZATION,
     POLIP_ERROR_SERVER_ERROR,
-    POLIP_ERROR_LIB_REQUEST
+    POLIP_ERROR_LIB_REQUEST,
+    POLIP_ERROR_WORKFLOW
 } polip_ret_code_t;
 
+/**
+ * Workflow routines
+ */
+typedef enum _polip_workflow_source {
+    POLIP_WORKFFLOW_PUSH_STATE,
+    POLIP_WORKFLOW_POLL_STATE,
+    POLIP_WORKFLOW_GET_VALUE,
+    POLIP_WORKFLOW_PUSH_SENSE
+} polip_workflow_source_t;
+
 //==============================================================================
-//  Data Structure Declaration
+//  Public Data Structure Declaration
 //==============================================================================
 
 /**
@@ -78,10 +145,100 @@ typedef struct _polip_device {
     const char* firmwareStr = NULL; //! Firmware version to report to server
 } polip_device_t;
 
+/**
+ * 
+ */
+struct _polip_workflow_params {
+    bool onlyOneEvent = false;       //! Prevents >1 events ran in 1 update call
+    bool pushSensePeriodic = false;  //! Flag vs. periodic loop
+    unsigned long pollStateTimeThreshold = POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD;
+    unsigned long pushSenseTimeThreshold = POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD;
+};
+
+/**
+ * 
+ */
+struct _polip_workflow_hooks {
+    void (*pushStateSetupCb)(polip_device_t* dev, JsonDocument& state) = NULL;
+    void (*pushStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    void (*pollStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    void (*valueRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    void (*pushSenseSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    void (*pushSenseRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
+};
+
+/**
+ * 
+ */
+struct _polip_workflow_flags {
+    bool stateChanged = false;       //! Externally state has changed
+    bool senseChanged = false;       //! Externally sense has changed
+    bool getValue = false;           //! Need refresh value
+    polip_ret_code_t error = POLIP_OK; //! Last error encountered
+};
+
+/**
+ * 
+ */
+struct _polip_workflow_timers {
+    unsigned long pollTime = 0;      //! last poll event (ms)
+    unsigned long senseTime = 0;     //! last sense event (ms)
+};
+
+/**
+ * Object used within workflow routine for general update / behavior of polip
+ * device.
+ */
+typedef struct _polip_workflow {
+    /**
+     * Pointer to device within this workflow
+     */
+    struct _polip_device *device = NULL;  
+    /**
+     * Inner table for parameters used during workflow
+     * Defaults set as defined in struct
+     */
+    struct _polip_workflow_params params;
+    /**
+     * Inner table for setup / response hooks
+     * Set to NULL if not used.
+     */
+    struct _polip_workflow_hooks hooks;
+    /**
+     * Inner table for event flags used during workflow
+     * Normally set to false
+     */
+    struct _polip_workflow_flags flags;
+    /**
+     * Inner table for soft timers used during workflow
+     * Must be initialized to current time before running periodic update!
+     */
+    struct _polip_workflow_timers timers;
+
+} polip_workflow_t;
+
 //==============================================================================
 //  Public Function Prototypes
 //==============================================================================
 
+/**
+ * Generalized workflow for polip device operation initializer in setup
+ * @param wkObj workflow object with params, hooks, flags necessary to run
+ * @param currentTime_ms time used to seed internal soft timers
+ * @return polip_ret_code_t 
+ */
+polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned long currentTime_ms);
+/**
+ * Generalized worflow for polip device operation in main event loop
+ * @param wkObj workflow object with params, hooks, flags necessary to run
+ * @param doc reference to JSON buffer (will clear/replace contents)
+ * @param timestamp pointer to formatted tiemstamp string
+ * @param currentTime_ms time generated from millis() for periodic update
+ * @return polip_ret_code_t error enum any non-recoverable error condition during workflow; OK on success
+ */
+polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj, 
+        JsonDocument& doc, const char* timestamp, unsigned long currentTime_ms);
 /**
  * Checks server health check end-point
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success

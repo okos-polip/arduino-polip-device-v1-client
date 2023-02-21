@@ -4,7 +4,6 @@
  * @brief Polip Client
  * @version 0.1
  * @date 2022-10-20
- * 
  * @copyright Copyright (c) 2022
  * 
  * Polip-lib to communicate with Okos Polip home automation server.
