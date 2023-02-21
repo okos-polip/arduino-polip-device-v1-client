@@ -17,6 +17,15 @@
  * - NTPClient (via Arduino IDE)
  * - Arduino Crypto (via Arduino IDE)
  *      - (I had to manually rename the library from Crypto.h to ArduinoCrypto.h)
+ * 
+ * Debug Serial:
+ * ---
+ * Several commands available for testing behavior
+ * 
+ *  [reset] -> Requests hardware state reset (will wipe EEPROM)
+ *  [state?] -> Queries current state code
+ *  [toggle] -> Flips current state boolean (power state)
+ *  [error?] -> Queries error status of polip lib
  */
 
 //==============================================================================
@@ -223,4 +232,4 @@ static void _errorHandler(polip_device_t* dev, JsonDocument& state, polip_workfl
     Serial.print((int)source);
     Serial.print(F(" with CODE="));
     Serial.println((int)polipWorkflow.flags.error);
-}
+} 
