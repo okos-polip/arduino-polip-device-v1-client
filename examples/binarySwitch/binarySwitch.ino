@@ -61,7 +61,7 @@
 //==============================================================================
 
 #define readResetBtnState() ((bool)digitalRead(RESET_BTN_PIN))
-#define setSwitchState(state) (digitalWrite(SWITCH_PIN, (bool)state))   
+#define setSwitchState(state) (digitalWrite(SWITCH_PIN, !(bool)(state))) //Active LOW
 
 //==============================================================================
 //  Declared Constants
