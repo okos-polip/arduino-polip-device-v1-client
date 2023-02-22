@@ -159,7 +159,7 @@ struct _polip_workflow_params {
  * 
  */
 struct _polip_workflow_hooks {
-    void (*pushStateSetupCb)(polip_device_t* dev, JsonDocument& state) = NULL;
+    void (*pushStateSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
     void (*pushStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
     void (*pollStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
     void (*valueRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;

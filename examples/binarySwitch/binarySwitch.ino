@@ -49,11 +49,12 @@
 #define RESET_BTN_PIN                   (D0)
 
 #define RESET_BTN_TIME_THRESHOLD        (200L)
-#define POLL_TIME_THRESHOLD             (1000L)
 
 #define NTP_URL                         "pool.ntp.org"
 
 #define DEBUG_SERIAL_BAUD               (115200)
+
+#define FALLBACK_AP_NAME                "AP-Polip-Device-Setup"
 
 //==============================================================================
 //  Preprocessor Macros
@@ -75,28 +76,28 @@ const char* FIRMWARE_STR = POLIP_VERSION_STD_FORMAT(0,0,1);
 //  Private Module Variables
 //==============================================================================
 
-static StaticJsonDocument<512> doc;
-static WiFiUDP ntpUDP;
-static NTPClient timeClient(ntpUDP, NTP_URL, 0);
-static WiFiManager wifiManager;
-static polip_device_t polipDevice;
-static polip_workflow_t polipWorkflow;
+static StaticJsonDocument<POLIP_MIN_RECOMMENDED_DOC_SIZE> _doc;
+static WiFiUDP _ntpUDP;
+static NTPClient _timeClient(_ntpUDP, NTP_URL, 0);
+static WiFiManager _wifiManager;
+static polip_device_t _polipDevice;
+static polip_workflow_t _polipWorkflow;
 
-static unsigned long resetTime;
-static bool flag_reset = false;
-static bool prevBtnState = false;
-static char rxBuffer[50];
-static int rxBufferIdx = 0;
-static bool currentState = false;
-static unsigned long pollTime;
+static unsigned long _resetTime;
+static bool _flag_reset = false;
+static bool _prevBtnState = false;
+static char _rxBuffer[50];
+static int _rxBufferIdx = 0;
+static bool _currentState = false;
+static unsigned long _pollTime;
 
 //==============================================================================
 //  Private Function Prototypes
 //==============================================================================
 
-static void _pushStateSetup(polip_device_t* dev, JsonDocument& state);
-static void _pollStateResponse(polip_device_t* dev, JsonDocument& state);
-static void _errorHandler(polip_device_t* dev, JsonDocument& state, polip_workflow_source_t source);
+static void _pushStateSetup(polip_device_t* dev, JsonDocument& doc);
+static void _pollStateResponse(polip_device_t* dev, JsonDocument& doc);
+static void _errorHandler(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source);
 
 //==============================================================================
 //  MAIN
@@ -108,31 +109,31 @@ void setup() {
 
     pinMode(SWITCH_PIN, OUTPUT);
     pinMode(RESET_BTN_PIN, INPUT);
-    setSwitchState(currentState);
+    setSwitchState(_currentState);
 
-    wifiManager.autoConnect("AP-Polip-Device-Setup");
+    _wifiManager.autoConnect(FALLBACK_AP_NAME);
 
-    timeClient.begin();
+    _timeClient.begin();
 
     POLIP_BLOCK_AWAIT_SERVER_OK();
 
-    polipDevice.serialStr = SERIAL_STR;
-    polipDevice.keyStr = (const uint8_t*)KEY_STR;
-    polipDevice.keyStrLen = strlen(KEY_STR);
-    polipDevice.hardwareStr = HARDWARE_STR;
-    polipDevice.firmwareStr = FIRMWARE_STR;
-    polipDevice.skipTagCheck = false;
+    _polipDevice.serialStr = SERIAL_STR;
+    _polipDevice.keyStr = (const uint8_t*)KEY_STR;
+    _polipDevice.keyStrLen = strlen(KEY_STR);
+    _polipDevice.hardwareStr = HARDWARE_STR;
+    _polipDevice.firmwareStr = FIRMWARE_STR;
+    _polipDevice.skipTagCheck = false;
 
-    polipWorkflow.device = &polipDevice;
-    polipWorkflow.hooks.pushStateSetupCb = _pushStateSetup;
-    polipWorkflow.hooks.pollStateRespCb = _pollStateResponse;
-    polipWorkflow.hooks.workflowErrorCb = _errorHandler;
+    _polipWorkflow.device = &_polipDevice;
+    _polipWorkflow.hooks.pushStateSetupCb = _pushStateSetup;
+    _polipWorkflow.hooks.pollStateRespCb = _pollStateResponse;
+    _polipWorkflow.hooks.workflowErrorCb = _errorHandler;
 
     unsigned long currentTime = millis();
-    polip_workflow_initialize(&polipWorkflow, currentTime);
-    pollTime = resetTime = currentTime;
-    flag_reset = false;
-    prevBtnState = false;
+    polip_workflow_initialize(&_polipWorkflow, currentTime);
+    _pollTime = _resetTime = currentTime;
+    _flag_reset = false;
+    _prevBtnState = false;
 }
 
 void loop() {
@@ -140,45 +141,45 @@ void loop() {
     unsigned long currentTime = millis();
 
     // Refresh time
-    timeClient.update();
+    _timeClient.update();
 
     // Update Polip Server
-    polip_workflow_periodic_update(&polipWorkflow, doc, timeClient.getFormattedTime().c_str(), currentTime);
+    polip_workflow_periodic_update(&_polipWorkflow, _doc, _timeClient.getFormattedTime().c_str(), currentTime);
 
     // Serial debugging interface provides full state control
     while (Serial.available() > 0) {
-        if (rxBufferIdx >= (sizeof(rxBuffer) - 1)) {
+        if (_rxBufferIdx >= (sizeof(_rxBuffer) - 1)) {
             Serial.println(F("Error - Buffer Overflow ~ Clearing"));
-            rxBufferIdx = 0;
+            _rxBufferIdx = 0;
         }
 
         char c = Serial.read();
         if (c != '\n') {
-            rxBuffer[rxBufferIdx] = c;
-            rxBufferIdx++;
+            _rxBuffer[_rxBufferIdx] = c;
+            _rxBufferIdx++;
         } else {
-            rxBuffer[rxBufferIdx] = '\0';
-            rxBufferIdx = 0;
+            _rxBuffer[_rxBufferIdx] = '\0';
+            _rxBufferIdx = 0;
 
-            String str = String(rxBuffer);
+            String str = String(_rxBuffer);
 
             if (str == "reset") {
                 Serial.println(F("Debug Reset Requested"));
-                flag_reset = true;
+                _flag_reset = true;
             } else if (str == "state?") {
                 Serial.print(F("STATE = "));
-                Serial.println(currentState); 
+                Serial.println(_currentState); 
             } else if (str == "toggle") {
-                POLIP_WORKFLOW_STATE_CHANGED(&polipWorkflow);
-                currentState = !currentState;
+                POLIP_WORKFLOW_STATE_CHANGED(&_polipWorkflow);
+                _currentState = !_currentState;
             } else if (str == "error?") {
-                if (POLIP_WORKFLOW_IN_ERROR(&polipWorkflow)) {
+                if (POLIP_WORKFLOW_IN_ERROR(&_polipWorkflow)) {
                     Serial.println(F("Error in PolipLib: "));
-                    Serial.println((int)polipWorkflow.flags.error);
+                    Serial.println((int)_polipWorkflow.flags.error);
                 } else {
                     Serial.println(F("No Error"));
                 }
-                POLIP_WORKFLOW_ACK_ERROR(&polipWorkflow);
+                POLIP_WORKFLOW_ACK_ERROR(&_polipWorkflow);
             } else {
                 Serial.print(F("Error - Invalid Command ~ `"));
                 Serial.print(str);
@@ -189,27 +190,27 @@ void loop() {
 
     // Handle Reset button
     bool btnState = readResetBtnState();
-    if (!btnState && prevBtnState) {
-        resetTime = currentTime;
-    } else if (btnState && !prevBtnState) {
-        if ((currentTime - resetTime) >= RESET_BTN_TIME_THRESHOLD) {
+    if (!btnState && _prevBtnState) {
+        _resetTime = currentTime;
+    } else if (btnState && !_prevBtnState) {
+        if ((currentTime - _resetTime) >= RESET_BTN_TIME_THRESHOLD) {
             Serial.println(F("Reset Button Held"));
-            flag_reset = true;
+            _flag_reset = true;
         }
         // Otherwise button press was debounced.
     }
-    prevBtnState = btnState;
+    _prevBtnState = btnState;
 
      // Reset State Machine
-    if (flag_reset) {
-        flag_reset = false;
+    if (_flag_reset) {
+        _flag_reset = false;
         Serial.println(F("Erasing Config, restarting"));
-        wifiManager.resetSettings();
+        _wifiManager.resetSettings();
         ESP.restart();
     }
 
     // Update physical state
-    setSwitchState(currentState);
+    setSwitchState(_currentState);
     delay(1);
 }
 
@@ -217,19 +218,19 @@ void loop() {
 //  Private Function Implementation
 //==============================================================================
 
-static void _pushStateSetup(polip_device_t* dev, JsonDocument& state) {
+static void _pushStateSetup(polip_device_t* dev, JsonDocument& doc) {
     JsonObject stateObj = doc.createNestedObject("state");
-    stateObj["power"] = currentState;
+    stateObj["power"] = _currentState;
 }
 
-static void _pollStateResponse(polip_device_t* dev, JsonDocument& state) {
+static void _pollStateResponse(polip_device_t* dev, JsonDocument& doc) {
     JsonObject stateObj = doc["state"];
-    currentState = stateObj["power"];
+    _currentState = stateObj["power"];
 }
 
-static void _errorHandler(polip_device_t* dev, JsonDocument& state, polip_workflow_source_t source) {
+static void _errorHandler(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) {
     Serial.print(F("Error Handler ~ polip server error during OP="));
     Serial.print((int)source);
     Serial.print(F(" with CODE="));
-    Serial.println((int)polipWorkflow.flags.error);
+    Serial.println((int)_polipWorkflow.flags.error);
 } 
