@@ -334,6 +334,8 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
     serializeJson(doc, buffer);
 
 #if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
+    Serial.print("Endpoint: ");
+    Serial.println(endpoint);
     Serial.print("TX = ");
     Serial.println(buffer);
 #endif
