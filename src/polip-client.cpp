@@ -119,6 +119,22 @@ polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const ch
     return status;
 }
 
+polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+    if (!doc.containsKey("rpc")) {
+        return POLIP_ERROR_LIB_REQUEST;
+    } else if (!doc["rpc"].containsKey("uuid")) {
+        return POLIP_ERROR_LIB_REQUEST;
+    } else if (!doc["rpc"].containsKey("result")) {
+        return POLIP_ERROR_LIB_REQUEST;
+    }
+
+    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
+        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/rpc"
+    );
+
+    return status;
+}
+
 //==============================================================================
 //  Private Function Implementation
 //==============================================================================

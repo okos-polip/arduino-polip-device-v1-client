@@ -131,6 +131,15 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
 polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+/**
+ * Pushes RPC response to the server
+ * @param client is reference to external 
+ * @param dev pointer to device 
+ * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
+ * @param timestamp pointer to formated timestamp string
+ * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
+ */
+polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 
 //==============================================================================
 
