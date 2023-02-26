@@ -195,7 +195,7 @@ typedef struct _polip_workflow {
      * Normally set to false
      */
     struct _polip_workflow_flags {
-        bool rpcFinished = true;         //! Externally state has changed
+        bool rpcFinished = false;        //! Externally state has changed
         bool stateChanged = false;       //! Externally state has changed
         bool senseChanged = false;       //! Externally sense has changed
         bool getValue = false;           //! Need refresh value
