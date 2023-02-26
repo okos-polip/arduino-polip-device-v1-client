@@ -19,6 +19,9 @@
 //  Data Structure Declaration
 //==============================================================================
 
+/**
+ * Packed return structure for internal http requests
+ */
 typedef struct _ret {
     int httpCode;                       //! HTTP server status on POST
     bool jsonCode;                      //! Serializer status on deserialization
@@ -52,7 +55,45 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     polip_ret_code_t retStatus = POLIP_OK;
     unsigned int eventCount = 0;
 
-    // Push state to sever
+    // Push RPC to server
+    if (wkObj->flags.rpcFinished && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
+            && (eventCount >= 1))) {
+        
+        // Create RPC structure
+        doc.clear();
+        if (wkObj->hooks.pushRPCSetupCb != NULL) {
+            wkObj->hooks.pushRPCSetupCb(wkObj->device, doc);
+        }
+
+        // Push RPC to server
+        polip_ret_code_t polipCode = polip_pushRPC(
+            wkObj->device,
+            doc,
+            timestamp
+        );
+
+        // Process response
+        if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
+            wkObj->flags.getValue = true;
+
+        } else if (polipCode == POLIP_OK) {
+            wkObj->flags.rpcFinished = false;
+            if (wkObj->hooks.pushRPCRespCb != NULL) {
+                wkObj->hooks.pushRPCRespCb(wkObj->device, doc);
+            }
+
+        } else {
+            wkObj->flags.error = polipCode;
+            retStatus = POLIP_ERROR_WORKFLOW;
+            if (wkObj->hooks.workflowErrorCb != NULL) {
+                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_PUSH_RPC);
+            }
+        }
+
+        eventCount++;
+    }
+
+    // Push state to server
     if (wkObj->flags.stateChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
             && (eventCount >= 1))) {
         
@@ -84,7 +125,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             wkObj->flags.error = polipCode;
             retStatus = POLIP_ERROR_WORKFLOW;
             if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFFLOW_PUSH_STATE);
+                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_PUSH_STATE);
             }
         }
 
@@ -100,7 +141,8 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         polip_ret_code_t polipCode = polip_getState(
             wkObj->device,
             doc, 
-            timestamp
+            timestamp,
+            wkObj->params.pollRPC
         );
 
         // Process response
@@ -109,8 +151,13 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             
         } else if (polipCode == POLIP_OK) {
             wkObj->timers.pollTime = currentTime_ms;
+            
             if (wkObj->hooks.pollStateRespCb != NULL) {
                 wkObj->hooks.pollStateRespCb(wkObj->device, doc);
+            }
+
+            if (wkObj->params.pollRPC && wkObj->hooks.pollRPCRespCb != NULL) {
+                wkObj->hooks.pollRPCRespCb(wkObj->device, doc);
             }
 
         } else {
@@ -204,11 +251,16 @@ polip_ret_code_t polip_checkServerStatus() {
     return (code == 200) ? POLIP_OK : POLIP_ERROR_SERVER_ERROR;
 }
 
-polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, bool queryRPC) {
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true"
-    );
+    const char* uri = NULL;
+    if (queryRPC) {
+        uri = POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true&rpc=true";
+    } else {
+        uri = POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true";
+    }
+
+    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri);
 
     return status;
 }

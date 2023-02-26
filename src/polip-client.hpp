@@ -79,6 +79,10 @@
     (workflowPtr)->flags.senseChanged = true;                                   \
 }
 
+#define POLIP_WORKFLOW_RPC_FINISHED(workflowPtr) {                              \
+    (workflowPtr)->flags.rpcFinished = true;                                    \
+}
+
 #define POLIP_WORKFLOW_IN_ERROR(workflowPtr) ((workflowPtr)->flags.error != POLIP_OK)
 
 #define POLIP_WORKFLOW_ACK_ERROR(workflowPtr) {                                 \
@@ -120,10 +124,11 @@ typedef enum _polip_ret_code {
  * Workflow routines
  */
 typedef enum _polip_workflow_source {
-    POLIP_WORKFFLOW_PUSH_STATE,
+    POLIP_WORKFLOW_PUSH_STATE,
     POLIP_WORKFLOW_POLL_STATE,
     POLIP_WORKFLOW_GET_VALUE,
-    POLIP_WORKFLOW_PUSH_SENSE
+    POLIP_WORKFLOW_PUSH_SENSE,
+    POLIP_WORKFLOW_PUSH_RPC
 } polip_workflow_source_t;
 
 //==============================================================================
@@ -146,75 +151,65 @@ typedef struct _polip_device {
 } polip_device_t;
 
 /**
- * 
- */
-struct _polip_workflow_params {
-    bool onlyOneEvent = false;       //! Prevents >1 events ran in 1 update call
-    bool pushSensePeriodic = false;  //! Flag vs. periodic loop
-    unsigned long pollStateTimeThreshold = POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD;
-    unsigned long pushSenseTimeThreshold = POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD;
-};
-
-/**
- * 
- */
-struct _polip_workflow_hooks {
-    void (*pushStateSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*pushStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*pollStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*valueRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*pushSenseSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*pushSenseRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-    void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
-};
-
-/**
- * 
- */
-struct _polip_workflow_flags {
-    bool stateChanged = false;       //! Externally state has changed
-    bool senseChanged = false;       //! Externally sense has changed
-    bool getValue = false;           //! Need refresh value
-    polip_ret_code_t error = POLIP_OK; //! Last error encountered
-};
-
-/**
- * 
- */
-struct _polip_workflow_timers {
-    unsigned long pollTime = 0;      //! last poll event (ms)
-    unsigned long senseTime = 0;     //! last sense event (ms)
-};
-
-/**
  * Object used within workflow routine for general update / behavior of polip
  * device.
  */
 typedef struct _polip_workflow {
+    
     /**
      * Pointer to device within this workflow
      */
     struct _polip_device *device = NULL;  
+    
     /**
      * Inner table for parameters used during workflow
      * Defaults set as defined in struct
      */
-    struct _polip_workflow_params params;
+    struct _polip_workflow_params {
+        bool onlyOneEvent = false;       //! Prevents >1 events ran in 1 update call
+        bool pushSensePeriodic = false;  //! Flag vs. periodic loop
+        bool pollRPC = false;            //! Checks pending RPCs while pulling state
+        unsigned long pollStateTimeThreshold = POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD;
+        unsigned long pushSenseTimeThreshold = POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD;
+    } params;
+    
     /**
      * Inner table for setup / response hooks
      * Set to NULL if not used.
      */
-    struct _polip_workflow_hooks hooks;
+    struct _polip_workflow_hooks {
+        void (*pushStateSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pollStateRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*valueRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushSenseSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushSenseRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
+        void (*pollRPCRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    } hooks;
+    
     /**
      * Inner table for event flags used during workflow
      * Normally set to false
      */
-    struct _polip_workflow_flags flags;
+    struct _polip_workflow_flags {
+        bool rpcFinished = true;         //! Externally state has changed
+        bool stateChanged = false;       //! Externally state has changed
+        bool senseChanged = false;       //! Externally sense has changed
+        bool getValue = false;           //! Need refresh value
+        polip_ret_code_t error = POLIP_OK; //! Last error encountered
+    } flags;
+    
     /**
      * Inner table for soft timers used during workflow
      * Must be initialized to current time before running periodic update!
      */
-    struct _polip_workflow_timers timers;
+    struct _polip_workflow_timers {
+        unsigned long pollTime = 0;      //! last poll event (ms)
+        unsigned long senseTime = 0;     //! last sense event (ms)
+    } timers;
 
 } polip_workflow_t;
 
@@ -249,9 +244,10 @@ polip_ret_code_t polip_checkServerStatus();
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents)
  * @param timestamp pointer to formated timestamp string
+ * @param queryRPC boolean (default false) additionally queries for pending rpcs
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
-polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, bool queryRPC = false);
 /**
  * Sets the current state of the device to the server
  * Its recommended to first get state from server before pushing in
