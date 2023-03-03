@@ -91,7 +91,10 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         }
 
         eventCount++;
+        yield();
     }
+
+    
 
     // Push state to server
     if (wkObj->flags.stateChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
@@ -130,6 +133,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         }
 
         eventCount++;
+        yield();
     }
 
     // Poll server for state changes
@@ -169,6 +173,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         }
 
         eventCount++;
+        yield();
     }
 
     // Push sensor state to server
@@ -208,6 +213,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         }
 
         eventCount++;
+        yield();
     }
 
     // Attempt to get sync value from server
@@ -234,6 +240,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         }
 
         eventCount++;
+        yield();
     }
 
     return retStatus;
