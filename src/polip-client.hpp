@@ -102,6 +102,14 @@
     Serial.println(F("Connected"));                                             \
 }
 
+#define polip_pushNotification(dev, doc, timestamp) (                           \
+    polip_pushError(                                                            \
+        dev,                                                                    \
+        doc,                                                                    \
+        timestamp                                                               \
+    )                                                                           \
+)
+
 //==============================================================================
 //  Enumerated Constants
 //==============================================================================
