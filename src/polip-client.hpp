@@ -30,7 +30,7 @@
 //! Fixed device ingest server URL 
 //TODO this should be a domain name not an IP address
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
-#define POLIP_DEVICE_INGEST_SERVER_URL              "http://api.okospolip:3020"
+#define POLIP_DEVICE_INGEST_SERVER_URL              "http://api.okospolip.com:3020"
 #endif
 
 //! Minimum JSON doc size, larger if state or sense is substatial
