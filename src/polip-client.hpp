@@ -27,8 +27,7 @@
 //  Preprocessor Constants
 //==============================================================================
 
-//! Fixed device ingest server URL 
-//TODO this should be a domain name not an IP address
+//! Fixed device ingest server URL
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
 #define POLIP_DEVICE_INGEST_SERVER_URL              "http://api.okospolip.com:3021"
 // PORTs
@@ -55,12 +54,16 @@
 #define POLIP_ARBITRARY_MSG_BUFFER_SIZE             (512)
 #endif
 
+#ifndef POLIP_QUERY_URI_BUFFER_SIZE
+#define POLIP_QUERY_URI_BUFFER_SIZE                 (128)
+#endif
+
 //! Periodic poll of server device state
 #ifndef POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD
 #define POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD     (1000L)
 #endif
 
-//! Periodic oush of device sensors
+//! Periodic push of device sensors
 #ifndef POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD
 #define POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD     (1000L)
 #endif
@@ -233,14 +236,16 @@ typedef struct _polip_workflow {
 //==============================================================================
 
 /**
- * Generalized workflow for polip device operation initializer in setup
+ * @brief Generalized workflow for polip device operation initializer in setup
+ * 
  * @param wkObj workflow object with params, hooks, flags necessary to run
  * @param currentTime_ms time used to seed internal soft timers
  * @return polip_ret_code_t 
  */
 polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned long currentTime_ms);
 /**
- * Generalized worflow for polip device operation in main event loop
+ * @brief Generalized worflow for polip device operation in main event loop
+ * 
  * @param wkObj workflow object with params, hooks, flags necessary to run
  * @param doc reference to JSON buffer (will clear/replace contents)
  * @param timestamp pointer to formatted tiemstamp string
@@ -250,21 +255,29 @@ polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned lon
 polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj, 
         JsonDocument& doc, const char* timestamp, unsigned long currentTime_ms);
 /**
- * Checks server health check end-point
+ * @brief Checks server health check end-point
+ * 
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
 polip_ret_code_t polip_checkServerStatus();
 /**
- * Gets the current state of the device from the server
+ * @brief Gets the current state of the device from the server
+ * 
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents)
  * @param timestamp pointer to formated timestamp string
+ * @param queryState boolean (default true) additionally queries for state data
+ * @param queryMeta boolean (default false) additionally queries for general device meta data
+ * @param querySensors boolean (default false) additionally queries for sensor meta data
+ * @param queryManufacturer boolean (default false) additionally queries for manufacturer defined data
  * @param queryRPC boolean (default false) additionally queries for pending rpcs
- * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
+ * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
  */
-polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, bool queryRPC = false);
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
+        bool queryState = true, bool queryMeta = false, bool querySensors = false, 
+        bool queryManufacturer = false, bool queryRPC = false);
 /**
- * Sets the current state of the device to the server
+ * @brief Sets the current state of the device to the server
  * Its recommended to first get state from server before pushing in
  * cases where pending state exists in database but not yet reflected
  * on device.
@@ -283,7 +296,8 @@ polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const c
  */
 polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
- * Pushes sensor state to the server
+ * @brief Pushes sensor state to the server
+ * 
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
  * @param timestamp pointer to formated timestamp string
@@ -291,7 +305,8 @@ polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const c
  */
 polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
- * Gets message identifier value from server (used internally for synchronization)
+ * @brief Gets message identifier value from server (used internally for synchronization)
+ * 
  * @param client is reference to external 
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
@@ -300,7 +315,8 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
  */
 polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
- * Pushes RPC response to the server
+ * @brief Pushes RPC response to the server
+ * 
  * @param client is reference to external 
  * @param dev pointer to device 
  * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
@@ -308,6 +324,34 @@ polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const ch
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success
  */
 polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+/**
+ * @brief Gets schema for this specific device
+ * 
+ * @param dev pointer to device 
+ * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
+ * @param timestamp pointer to formated timestamp string
+ * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
+ */
+polip_ret_code_t polip_getSchema(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
+/**
+ * @brief Gets semantic JSON table for all error codes
+ * 
+ * @param dev pointer to device 
+ * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
+ * @param timestamp pointer to formated timestamp string
+ * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
+ */
+polip_ret_code_t polip_getAllErrorSemantics(polip_device* dev, JsonDocument& doc, const char* timestamp);
+/**
+ * @brief Gets semantic JSON table for code supplied
+ * 
+ * @param dev pointer to device 
+ * @param code integer to lookup semantic
+ * @param doc reference to JSON buffer (will clear/replace contents) - should initially contain sense field
+ * @param timestamp pointer to formated timestamp string
+ * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
+ */
+polip_ret_code_t polip_getErrorSemanticFromCode(polip_device* dev, int32_t code, JsonDocument& doc, const char* timestamp);
 
 //==============================================================================
 

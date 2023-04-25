@@ -94,8 +94,6 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
         yield();
     }
 
-    
-
     // Push state to server
     if (wkObj->flags.stateChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
             && (eventCount >= 1))) {
@@ -146,6 +144,10 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             wkObj->device,
             doc, 
             timestamp,
+            true,
+            false,
+            false,
+            false,
             wkObj->params.pollRPC
         );
 
@@ -258,18 +260,19 @@ polip_ret_code_t polip_checkServerStatus() {
     return (code == 200) ? POLIP_OK : POLIP_ERROR_SERVER_ERROR;
 }
 
-polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, bool queryRPC) {
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
+        bool queryState, bool queryMeta, bool querySensors, bool queryManufacturer, bool queryRPC) {
 
-    const char* uri = NULL;
-    if (queryRPC) {
-        uri = POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true&rpc=true";
-    } else {
-        uri = POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll?state=true";
-    }
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll" "?state=%s&meta=%s&sensors=%s&manufacturer=%s&rpc=%s",
+        (queryState) ? "true" : "false",
+        (queryMeta) ? "true" : "false",
+        (querySensors) ? "true" : "false",
+        (queryManufacturer) ? "true" : "false",
+        (queryRPC) ? "true" : "false"
+    );
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri);
-
-    return status;
+    return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
@@ -277,11 +280,10 @@ polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const c
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/push"
-    );
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/push");
 
-    return status;
+    return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
@@ -289,11 +291,10 @@ polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const c
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error"
-    );
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error");
 
-    return status;
+    return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
@@ -301,16 +302,17 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/sense"
-    );
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/sense");
 
-    return status;
+    return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value", 
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value");
+
+    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri
         true, // skip value in request pack 
         true  // skip tag in request pack, response check
     );
@@ -331,11 +333,31 @@ polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const cha
         return POLIP_ERROR_LIB_REQUEST;
     }
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, 
-        POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/rpc"
-    );
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/rpc");
 
-    return status;
+    return _requestTemplate(dev, doc, timestamp, uri);
+}
+
+polip_ret_code_t polip_getSchema(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/schema");
+
+    return _requestTemplate(dev, doc, timestamp, uri);
+}
+
+polip_ret_code_t polip_getAllErrorSemantics(polip_device* dev, JsonDocument& doc, const char* timestamp) {
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error/semantic");
+
+    return _requestTemplate(dev, doc, timestamp, uri);
+}
+
+polip_ret_code_t polip_getErrorSemanticFromCode(polip_device* dev, int32_t code, JsonDocument& doc, const char* timestamp) {
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error/semantic" "?code=%d", code);
+
+    return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 //==============================================================================
