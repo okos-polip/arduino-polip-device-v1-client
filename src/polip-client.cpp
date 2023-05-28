@@ -56,7 +56,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     unsigned int eventCount = 0;
 
     // Push RPC to server
-    if (wkObj->flags.rpcFinished && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
+    if (wkObj->flags.rpcChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
             && (eventCount >= 1))) {
         
         // Create RPC structure
@@ -77,7 +77,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             wkObj->flags.getValue = true;
 
         } else if (polipCode == POLIP_OK) {
-            wkObj->flags.rpcFinished = false;
+            wkObj->flags.rpcChanged = false;
             if (wkObj->hooks.pushRPCRespCb != NULL) {
                 wkObj->hooks.pushRPCRespCb(wkObj->device, doc);
             }
@@ -144,10 +144,8 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             wkObj->device,
             doc, 
             timestamp,
-            true,
-            false,
-            false,
-            false,
+            wkObj->params.pollState,
+            wkObj->params.pollManufacturer,
             wkObj->params.pollRPC
         );
 
@@ -260,16 +258,28 @@ polip_ret_code_t polip_checkServerStatus() {
     return (code == 200) ? POLIP_OK : POLIP_ERROR_SERVER_ERROR;
 }
 
-polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
-        bool queryState, bool queryMeta, bool querySensors, bool queryManufacturer, bool queryRPC) {
+polip_ret_code_t polip_poll(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
+        bool queryState, bool queryManufacturer, bool queryRPC) {
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll" "?state=%s&meta=%s&sensors=%s&manufacturer=%s&rpc=%s",
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll" "?state=%s&manufacturer=%s&rpc=%s",
         (queryState) ? "true" : "false",
-        (queryMeta) ? "true" : "false",
-        (querySensors) ? "true" : "false",
         (queryManufacturer) ? "true" : "false",
         (queryRPC) ? "true" : "false"
+    );
+
+    return _requestTemplate(dev, doc, timestamp, uri);
+}
+
+polip_ret_code_t polip_getMeta(polip_device_t* dev, JsonDocument& doc, const char* timestamp,
+        bool queryState, bool querySensors, bool queryManufacturer, bool queryGeneral) {
+
+    char uri[POLIP_QUERY_URI_BUFFER_SIZE];
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/meta" "?state=%s&manufacturer=%s&sensors=%s&general=%s",
+        (queryState) ? "true" : "false",
+        (queryManufacturer) ? "true" : "false",
+        (querySensors) ? "true" : "false",
+        (queryGeneral) ? "true" : "false"
     );
 
     return _requestTemplate(dev, doc, timestamp, uri);
@@ -281,7 +291,7 @@ polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const c
     }
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/push");
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/state");
 
     return _requestTemplate(dev, doc, timestamp, uri);
 }
@@ -330,6 +340,8 @@ polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const cha
     } else if (!doc["rpc"].containsKey("uuid")) {
         return POLIP_ERROR_LIB_REQUEST;
     } else if (!doc["rpc"].containsKey("result")) {
+        return POLIP_ERROR_LIB_REQUEST;
+    } else if (!doc["rpc"].containsKey("status")) {
         return POLIP_ERROR_LIB_REQUEST;
     }
 

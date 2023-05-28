@@ -23,13 +23,20 @@
 #include <ArduinoCrypto.h>
 #include <ESP8266HTTPClient.h>
 
+// Macro used for some arduino to store/load string from flash directly
+// if not defined, subsitute to noop
+#ifndef F
+#define F(arg) (arg)
+#endif
+
 //==============================================================================
 //  Preprocessor Constants
 //==============================================================================
 
 //! Fixed device ingest server URL
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
-#define POLIP_DEVICE_INGEST_SERVER_URL              "http://api.okospolip.com:3021"
+#define POLIP_DEVICE_INGEST_SERVER_URL              F("http://api.okospolip.com:3021")
+#endif
 // PORTs
 //   3010 - internal schema
 //   3011 - external schema http
@@ -37,7 +44,6 @@
 //   3020 - internal ingest v1
 //   3021 - external ingest v1 http
 //   3033 - external ingest v1 https
-#endif
 
 //! Minimum JSON doc size, larger if state or sense is substatial
 #ifndef POLIP_MIN_RECOMMENDED_DOC_SIZE
@@ -68,13 +74,21 @@
 #define POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD     (1000L)
 #endif
 
+//! RPC status options
+//    Can push all but canceled (since that happens server side) - use reject if need to drop
+//    On poll expect pending, acknowledged
+#define POLIP_RPC_STATUS_PENDING                    F("pending")
+#define POLIP_RPC_STATUS_SUCCESS                    F("success")
+#define POLIP_RPC_STATUS_FAILURE                    F("failure")
+#define POLIP_RPC_STATUS_REJECTED                   F("rejected")
+#define POLIP_RPC_STATUS_ACKNOWLEDGED               F("acknowledged")
+#define POLIP_RPC_STATUS_CANCELED                   F("canceled")
+
 //==============================================================================
 //  Preprocessor Macros
 //==============================================================================
 
-#ifndef F
-#define F(arg) (arg)
-#endif
+
 
 /**
  * Standard format for hardware and firmware version strings 
@@ -89,8 +103,8 @@
     (workflowPtr)->flags.senseChanged = true;                                   \
 }
 
-#define POLIP_WORKFLOW_RPC_FINISHED(workflowPtr) {                              \
-    (workflowPtr)->flags.rpcFinished = true;                                    \
+#define POLIP_WORKFLOW_RPC_CHANGED(workflowPtr) {                              \
+    (workflowPtr)->flags.rpcChanged = true;                                    \
 }
 
 #define POLIP_WORKFLOW_IN_ERROR(workflowPtr) ((workflowPtr)->flags.error != POLIP_OK)
@@ -186,7 +200,9 @@ typedef struct _polip_workflow {
     struct _polip_workflow_params {
         bool onlyOneEvent = false;       //! Prevents >1 events ran in 1 update call
         bool pushSensePeriodic = false;  //! Flag vs. periodic loop
-        bool pollRPC = false;            //! Checks pending RPCs while pulling state
+        bool pollState = true;           //! Allows override of check state during poll
+        bool pollRPC = false;            //! Checks pending RPCs while polling state
+        bool pollManufacturer = false;   //! Checks manufacturer defined data while polling
         unsigned long pollStateTimeThreshold = POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD;
         unsigned long pushSenseTimeThreshold = POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD;
     } params;
@@ -213,7 +229,7 @@ typedef struct _polip_workflow {
      * Normally set to false
      */
     struct _polip_workflow_flags {
-        bool rpcFinished = false;        //! Externally state has changed
+        bool rpcChanged = false;         //! Externally state has changed
         bool stateChanged = false;       //! Externally state has changed
         bool senseChanged = false;       //! Externally sense has changed
         bool getValue = false;           //! Need refresh value
@@ -267,15 +283,26 @@ polip_ret_code_t polip_checkServerStatus();
  * @param doc reference to JSON buffer (will clear/replace contents)
  * @param timestamp pointer to formated timestamp string
  * @param queryState boolean (default true) additionally queries for state data
- * @param queryMeta boolean (default false) additionally queries for general device meta data
- * @param querySensors boolean (default false) additionally queries for sensor meta data
  * @param queryManufacturer boolean (default false) additionally queries for manufacturer defined data
  * @param queryRPC boolean (default false) additionally queries for pending rpcs
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
  */
 polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
-        bool queryState = true, bool queryMeta = false, bool querySensors = false, 
-        bool queryManufacturer = false, bool queryRPC = false);
+        bool queryState = true, bool queryManufacturer = false, bool queryRPC = false);
+/**
+ * @brief Gets the current metadata state of the device from server
+ * 
+ * @param dev pointer to device
+ * @param doc reference to JSON buffer (will clear/replace contents)
+ * @param timestamp pointer to formatted timestamp string
+ * @param queryState boolean (default true) queries for state metadata
+ * @param querySensors boolean (default true) queuries for sensor metadata
+ * @param queryManufacturer boolean (default true) queries for manufacturer defined data
+ * @param queryGeneral boolean (default true) queries for general metadata
+ * @return polip_ret_code_t 
+ */
+polip_ret_code_t polip_getMeta(polip_device_t* dev, JsonDocument& doc, const char* timestamp,
+        bool queryState = true, bool querySensors = true, bool queryManufacturer = true, bool queryGeneral = true);
 /**
  * @brief Sets the current state of the device to the server
  * Its recommended to first get state from server before pushing in
