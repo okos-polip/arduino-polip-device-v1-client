@@ -23,12 +23,6 @@
 #include <ArduinoCrypto.h>
 #include <ESP8266HTTPClient.h>
 
-// Macro used for some arduino to store/load string from flash directly
-// if not defined, subsitute to noop
-#ifndef F
-#define F(arg) (arg)
-#endif
-
 //==============================================================================
 //  Preprocessor Constants
 //==============================================================================
@@ -77,12 +71,12 @@
 //! RPC status options
 //    Can push all but canceled (since that happens server side) - use reject if need to drop
 //    On poll expect pending, acknowledged
-#define POLIP_RPC_STATUS_PENDING                    F("pending")
-#define POLIP_RPC_STATUS_SUCCESS                    F("success")
-#define POLIP_RPC_STATUS_FAILURE                    F("failure")
-#define POLIP_RPC_STATUS_REJECTED                   F("rejected")
-#define POLIP_RPC_STATUS_ACKNOWLEDGED               F("acknowledged")
-#define POLIP_RPC_STATUS_CANCELED                   F("canceled")
+#define POLIP_RPC_STATUS_PENDING                    "pending"
+#define POLIP_RPC_STATUS_SUCCESS                    "success"
+#define POLIP_RPC_STATUS_FAILURE                    "failure"
+#define POLIP_RPC_STATUS_REJECTED                   "rejected"
+#define POLIP_RPC_STATUS_ACKNOWLEDGED               "acknowledged"
+#define POLIP_RPC_STATUS_CANCELED                   "canceled"
 
 //==============================================================================
 //  Preprocessor Macros
