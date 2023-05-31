@@ -35,7 +35,7 @@
 
 //! Fixed device ingest server URL
 #ifndef POLIP_DEVICE_INGEST_SERVER_URL
-#define POLIP_DEVICE_INGEST_SERVER_URL              F("http://api.okospolip.com:3021")
+#define POLIP_DEVICE_INGEST_SERVER_URL              "http://api.okospolip.com:3021"
 #endif
 // PORTs
 //   3010 - internal schema
