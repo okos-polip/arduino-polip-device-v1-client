@@ -358,14 +358,14 @@ polip_ret_code_t polip_getSchema(polip_device_t* dev, JsonDocument& doc, const c
     return _requestTemplate(dev, doc, timestamp, uri);
 }
 
-polip_ret_code_t polip_getAllErrorSemantics(polip_device* dev, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_getAllErrorSemantics(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
     sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error/semantic");
 
     return _requestTemplate(dev, doc, timestamp, uri);
 }
 
-polip_ret_code_t polip_getErrorSemanticFromCode(polip_device* dev, int32_t code, JsonDocument& doc, const char* timestamp) {
+polip_ret_code_t polip_getErrorSemanticFromCode(polip_device_t* dev, int32_t code, JsonDocument& doc, const char* timestamp) {
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
     sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error/semantic" "?code=%d", code);
 

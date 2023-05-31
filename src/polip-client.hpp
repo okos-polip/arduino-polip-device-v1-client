@@ -368,7 +368,7 @@ polip_ret_code_t polip_getSchema(polip_device_t* dev, JsonDocument& doc, const c
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
  */
-polip_ret_code_t polip_getAllErrorSemantics(polip_device* dev, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_getAllErrorSemantics(polip_device_t* dev, JsonDocument& doc, const char* timestamp);
 /**
  * @brief Gets semantic JSON table for code supplied
  * 
@@ -378,7 +378,7 @@ polip_ret_code_t polip_getAllErrorSemantics(polip_device* dev, JsonDocument& doc
  * @param timestamp pointer to formated timestamp string
  * @return polip_ret_code_t error enum any non-recoverable error condition with server; OK on success 
  */
-polip_ret_code_t polip_getErrorSemanticFromCode(polip_device* dev, int32_t code, JsonDocument& doc, const char* timestamp);
+polip_ret_code_t polip_getErrorSemanticFromCode(polip_device_t* dev, int32_t code, JsonDocument& doc, const char* timestamp);
 
 //==============================================================================
 
