@@ -258,7 +258,7 @@ polip_ret_code_t polip_checkServerStatus() {
     return (code == 200) ? POLIP_OK : POLIP_ERROR_SERVER_ERROR;
 }
 
-polip_ret_code_t polip_poll(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
+polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
         bool queryState, bool queryManufacturer, bool queryRPC) {
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
