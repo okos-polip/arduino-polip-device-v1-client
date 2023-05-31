@@ -322,7 +322,7 @@ polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const ch
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
     sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value");
 
-    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri
+    polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri,
         true, // skip value in request pack 
         true  // skip tag in request pack, response check
     );
