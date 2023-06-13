@@ -71,18 +71,16 @@
 //! RPC status options
 //    Can push all but canceled (since that happens server side) - use reject if need to drop
 //    On poll expect pending, acknowledged
-#define POLIP_RPC_STATUS_PENDING                    "pending"
-#define POLIP_RPC_STATUS_SUCCESS                    "success"
-#define POLIP_RPC_STATUS_FAILURE                    "failure"
-#define POLIP_RPC_STATUS_REJECTED                   "rejected"
-#define POLIP_RPC_STATUS_ACKNOWLEDGED               "acknowledged"
-#define POLIP_RPC_STATUS_CANCELED                   "canceled"
+#define POLIP_RPC_STATUS_PENDING_STR                    "pending"
+#define POLIP_RPC_STATUS_SUCCESS_STR                    "success"
+#define POLIP_RPC_STATUS_FAILURE_STR                    "failure"
+#define POLIP_RPC_STATUS_REJECTED_STR                   "rejected"
+#define POLIP_RPC_STATUS_ACKNOWLEDGED_STR               "acknowledged"
+#define POLIP_RPC_STATUS_CANCELED_STR                   "canceled"
 
 //==============================================================================
 //  Preprocessor Macros
 //==============================================================================
-
-
 
 /**
  * Standard format for hardware and firmware version strings 
@@ -157,6 +155,19 @@ typedef enum _polip_workflow_source {
     POLIP_WORKFLOW_PUSH_RPC
 } polip_workflow_source_t;
 
+/**
+ * RPC state
+ */
+typedef enum _polip_rpc_status {
+    POLIP_RPC_STATUS_PENDING,                    
+    POLIP_RPC_STATUS_SUCCESS,                    
+    POLIP_RPC_STATUS_FAILURE,                    
+    POLIP_RPC_STATUS_REJECTED,                   
+    POLIP_RPC_STATUS_ACKNOWLEDGED,               
+    POLIP_RPC_STATUS_CANCELED,
+    _RPC_STATUS_UNKNOWN                  
+} polip_rpc_status_t;
+
 //==============================================================================
 //  Public Data Structure Declaration
 //==============================================================================
@@ -177,6 +188,59 @@ typedef struct _polip_device {
 } polip_device_t;
 
 /**
+ * 
+ */
+typedef struct _polip_rpc {
+    enum _polip_rpc_status status = _RPC_STATUS_UNKNOWN;
+    char uuid[50];
+    char type[50];
+    void* userContext = NULL;
+} polip_rpc_t;
+
+/**
+ * 
+ */
+typedef struct _polip_rpc_workflow {
+
+    /**
+     * Pointer to array of RPCs
+     */
+    struct _polip_rpc *activeRPCs = NULL;
+
+    /**
+     * 
+     */
+    struct _polip_rpc_workflow_params {
+        unsigned int maxActivedRPCs = 1;  //! Number of RPCs allowed
+        bool pushAdditionalNotification = false; //! In addition to pushing RPC status, also send message on notification route
+        bool onHeap = true; //! Will allocate buffer on initialization
+    } params;
+
+    /**
+     * Callback functions defined by user
+     */
+    struct _polip_rpc_workflow_hooks {
+        void (*pollRPCRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCAckSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCAckRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCFinishSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+        void (*pushRPCFinishRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
+    } hooks;
+
+    struct _polip_rpc_workflow_flags {
+        bool shouldPeriodicUpdate = false;
+    } flags;
+
+    /**
+     * Workflow internal state
+     */
+    struct _polip_rpc_workflow_state {
+        unsigned int numActiveRPCs = 0;  //! Current number of RPCs being processed
+    } state;
+
+} polip_rpc_workflow_t;
+
+/**
  * Object used within workflow routine for general update / behavior of polip
  * device.
  */
@@ -186,6 +250,11 @@ typedef struct _polip_workflow {
      * Pointer to device within this workflow
      */
     struct _polip_device *device = NULL;  
+
+    /**
+     * Pointer to RPC workflow
+     */
+    struct _polip_rpc_workflow * rpcWorkflow = NULL;
     
     /**
      * Inner table for parameters used during workflow
@@ -195,7 +264,6 @@ typedef struct _polip_workflow {
         bool onlyOneEvent = false;       //! Prevents >1 events ran in 1 update call
         bool pushSensePeriodic = false;  //! Flag vs. periodic loop
         bool pollState = true;           //! Allows override of check state during poll
-        bool pollRPC = false;            //! Checks pending RPCs while polling state
         bool pollManufacturer = false;   //! Checks manufacturer defined data while polling
         unsigned long pollStateTimeThreshold = POLIP_DEFAULT_POLL_STATE_TIME_THRESHOLD;
         unsigned long pushSenseTimeThreshold = POLIP_DEFAULT_PUSH_SENSE_TIME_THRESHOLD;
@@ -213,9 +281,6 @@ typedef struct _polip_workflow {
         void (*pushSenseSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
         void (*pushSenseRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
         void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
-        void (*pollRPCRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-        void (*pushRPCSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-        void (*pushRPCRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
     } hooks;
     
     /**
@@ -223,7 +288,6 @@ typedef struct _polip_workflow {
      * Normally set to false
      */
     struct _polip_workflow_flags {
-        bool rpcChanged = false;         //! Externally state has changed
         bool stateChanged = false;       //! Externally state has changed
         bool senseChanged = false;       //! Externally sense has changed
         bool getValue = false;           //! Need refresh value
@@ -231,13 +295,13 @@ typedef struct _polip_workflow {
     } flags;
     
     /**
-     * Inner table for soft timers used during workflow
+     * Inner table for state used during workflow
      * Must be initialized to current time before running periodic update!
      */
-    struct _polip_workflow_timers {
-        unsigned long pollTime = 0;      //! last poll event (ms)
-        unsigned long senseTime = 0;     //! last sense event (ms)
-    } timers;
+    struct _polip_workflow_state {
+        unsigned long pollTimer = 0;      //! last poll event (ms)
+        unsigned long senseTimer = 0;     //! last sense event (ms)
+    } state;
 
 } polip_workflow_t;
 
@@ -245,14 +309,27 @@ typedef struct _polip_workflow {
 //  Public Function Prototypes
 //==============================================================================
 
+//-----------------------------------------------------------------------------
+//  Workflow Functions
+//-----------------------------------------------------------------------------
+
 /**
- * @brief Generalized workflow for polip device operation initializer in setup
+ * @brief Generalized workflow for polip device operation initializer 
+ * to call during setup
  * 
  * @param wkObj workflow object with params, hooks, flags necessary to run
  * @param currentTime_ms time used to seed internal soft timers
- * @return polip_ret_code_t 
+ * @return polip_ret_code_t error enum any non-recoverable error condition during workflow; OK on success
  */
 polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned long currentTime_ms);
+/**
+ * @brief Generalized workflow for polip device operation destructor, call only
+ * if destroying context (advanced use only!)
+ * 
+ * @param wkObj workflow object with params, hooks, flags necessary to run
+ * @return polip_ret_code_t error enum any non-recoverable error condition during workflow; OK on success
+ */
+polip_ret_code_t polip_workflow_teardown(polip_workflow_t* wkObj);
 /**
  * @brief Generalized worflow for polip device operation in main event loop
  * 
@@ -264,6 +341,28 @@ polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned lon
  */
 polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj, 
         JsonDocument& doc, const char* timestamp, unsigned long currentTime_ms);
+
+//-----------------------------------------------------------------------------
+//  RPC Workflow Functions
+//-----------------------------------------------------------------------------
+
+polip_ret_code_t polip_rpc_workflow_initialize(polip_rpc_workflow_t* rpcWkObj);
+
+polip_ret_code_t polip_rpc_workflow_teardown(polip_rpc_workflow_t* rpcWkObj);
+
+polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
+        JsonDocument& doc, const char* timestamp, bool single_msg);
+
+polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, JsonDocument& doc);
+
+const char* polip_rpc_status_enum2str(polip_rpc_status_t status);
+
+polip_rpc_status_t polip_rpc_status_str2enum(const char* str);
+
+//-----------------------------------------------------------------------------
+//  Device Functions
+//-----------------------------------------------------------------------------
+
 /**
  * @brief Checks server health check end-point
  * 
