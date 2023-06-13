@@ -353,7 +353,8 @@ polip_ret_code_t polip_rpc_workflow_teardown(polip_rpc_workflow_t* rpcWkObj);
 polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
         JsonDocument& doc, const char* timestamp, bool single_msg);
 
-polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, JsonDocument& doc);
+polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
+        JsonDocument& doc, const char* timestamp, bool single_msg);
 
 const char* polip_rpc_status_enum2str(polip_rpc_status_t status);
 

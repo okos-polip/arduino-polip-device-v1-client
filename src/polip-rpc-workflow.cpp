@@ -52,7 +52,7 @@ polip_ret_code_t polip_rpc_workflow_teardown(polip_rpc_workflow_t* rpcWkObj) {
 
 polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
         JsonDocument& doc, const char* timestamp, bool single_msg) {
-    wkObj->rpcWorkflow->flags.shouldPeriodicUpdate = false;
+    rpcWkObj->flags.shouldPeriodicUpdate = false;
     unsigned int eventCount = 0;
     
     // if (wkObj->flags.rpcChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
@@ -94,7 +94,8 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
     // }
 }
 
-polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, JsonDocument& doc) {
+polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
+        JsonDocument& doc, const char* timestamp, bool single_msg) {
     //TODO need to handle the add / remove logic from list with a better mechanism
 
     JsonArray array = doc["rpc"].as<JsonArray>();
@@ -106,18 +107,18 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
 
         // check if uuid in list
         bool found = false;
-        for (int i=0; i<rpcWkObj->params.numActiveRPCs; i++) {
+        for (int i=0; i<rpcWkObj->state.numActiveRPCs; i++) {
             polip_rpc_t* entry = &rpcWkObj->activeRPCs[i];
 
             if (uuid == entry->uuid) {
                 found = true;
 
                 if (status == POLIP_RPC_STATUS_CANCELED) {
-                    if (rpcWkObj->hooks.cancelRPC(dev, entry)) {
-                        // TODO push Acknowledge cancel to periodic
-                    } else {
-                        // TODO push Reject cancel to periodic
-                    }
+                    // if (rpcWkObj->hooks.cancelRPC(dev, entry)) {
+                    //     // TODO push Acknowledge cancel to periodic
+                    // } else {
+                    //     // TODO push Reject cancel to periodic
+                    // }
                 } else if (status == POLIP_RPC_STATUS_PENDING) {
                     //TODO callback to acknowledge (somehow it got set back to pending state?)
                 }
