@@ -138,7 +138,7 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
         }
 
         // check if can accept another RPC
-        if (rpcWkObj->flags.numActiveRPCs < rpcWkObj->params.maxActivedRPCs) {
+        if (rpcWkObj->state.numActiveRPCs < rpcWkObj->params.maxActivedRPCs) {
             //TODO add RPC to list, move RPC into acknowledged state, rejected state, canceled state, or keep pending state
         } else {
             // Can't add this RPC to list so continue on to next

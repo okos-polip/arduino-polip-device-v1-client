@@ -99,7 +99,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
 
         } else if (polipCode == POLIP_OK) {
             wkObj->flags.stateChanged = false;
-            wkObj->state.pollTime = currentTime_ms; // Don't need to poll, current state just pushed
+            wkObj->state.pollTimer = currentTime_ms; // Don't need to poll, current state just pushed
             if (wkObj->hooks.pushStateRespCb != NULL) {
                 wkObj->hooks.pushStateRespCb(wkObj->device, doc);
             }
@@ -143,7 +143,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             }
 
             if (wkObj->rpcWorkflow != NULL) {
-                polip_rpc_workflow_poll_event(wkObj->rpcWorkflow, wkObj->device, doc);
+                polip_rpc_workflow_poll_event(wkObj->rpcWorkflow, wkObj->device, wkObj->device, doc, timestamp, wkObj->params.onlyOneEvent);
             }
 
         } else {
