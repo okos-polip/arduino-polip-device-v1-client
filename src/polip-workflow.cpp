@@ -143,7 +143,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             }
 
             if (wkObj->rpcWorkflow != NULL) {
-                polip_rpc_workflow_poll_event(wkObj->rpcWorkflow, wkObj->device, wkObj->device, doc, timestamp, wkObj->params.onlyOneEvent);
+                polip_rpc_workflow_poll_event(wkObj->rpcWorkflow, wkObj->device, doc, timestamp, wkObj->params.onlyOneEvent);
             }
 
         } else {
