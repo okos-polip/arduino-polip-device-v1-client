@@ -340,7 +340,7 @@ bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rp
     } else {
         // Need to search within list (start at child of 0th element)
         for (polip_rpc_t* parent = rpcWkObj->state._activePtr; parent != NULL; parent = parent->_nextPtr) {
-            if (parent._nextPtr == rpc) {
+            if (parent->_nextPtr == rpc) {
                 // Found slice point
                 parent->_nextPtr = rpc->_nextPtr;
                 rpc->_nextPtr = rpcWkObj->state._freePtr;
