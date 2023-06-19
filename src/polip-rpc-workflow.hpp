@@ -151,7 +151,7 @@ typedef struct _polip_rpc {
     /**
      * Pointer to next RPC in linked list
      */
-    struct _polip_rpc _nextPtr = NULL;
+    struct _polip_rpc *_nextPtr = NULL;
 
     /**
      * Ctrl bit, indicates checked against server list during Poll event
@@ -209,8 +209,8 @@ typedef struct _polip_rpc_workflow {
     struct _polip_rpc_workflow_state {
         bool allowingNewRPCs = true;
         unsigned int numActiveRPCs = 0;  //! Current number of RPCs being processed
-        struct _polip_rpc _activePtr = NULL;
-        struct _polip_rpc _freePtr = NULL;
+        struct _polip_rpc *_activePtr = NULL;
+        struct _polip_rpc *_freePtr = NULL;
         bool _masterCheckedBit = false;
     } state;
 
