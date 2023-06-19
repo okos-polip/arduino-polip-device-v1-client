@@ -18,10 +18,7 @@
 
 #ifdef __cplusplus
 
-#include "./polip-core.hpp"
-#include "./polip-device.hpp"
-#include "./polip-rpc-workflow.hpp"
-#include "./polip-workflow.hpp"
+#include "./polip-client.hpp"
 
 #else
 
