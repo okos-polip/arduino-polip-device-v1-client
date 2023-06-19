@@ -22,12 +22,12 @@
 //==============================================================================
 
 polip_ret_code_t polip_rpc_workflow_initialize(polip_rpc_workflow_t* rpcWkObj) {
-    if (rpcWkObj->activeRPCs != NULL && rpcWkObj->params.onHeap) {
+    if (rpcWkObj->_allocatedRPCs != NULL && rpcWkObj->params.onHeap) {
         return POLIP_ERROR_WORKFLOW;
     }
 
-    rpcWkObj->activeRPCs = new polip_rpc_t[rpcWkObj->params.maxActivedRPCs];
-    if (rpcWkObj->activeRPCs == NULL) {
+    rpcWkObj->_allocatedRPCs = new polip_rpc_t[rpcWkObj->params.maxActiveRPCs];
+    if (rpcWkObj->_allocatedRPCs == NULL) {
         return POLIP_ERROR_WORKFLOW;
     }
     
@@ -37,17 +37,17 @@ polip_ret_code_t polip_rpc_workflow_initialize(polip_rpc_workflow_t* rpcWkObj) {
     rpcWkObj->state.numActiveRPCs = 0;
 
     // Initialize each RPC with pointer in list
-    for (int i=0; i<rpcWkObj->params.maxActivedRPCs; i++) {
-        rpcWkObj->_allocatedRPCs[i]._nextPtr = (i+1 == rpcWkObj->params.maxActivedRPCs) ? NULL : &rpcWkObj->_allocatedRPCs[i+1];
+    for (int i=0; i<rpcWkObj->params.maxActiveRPCs; i++) {
+        rpcWkObj->_allocatedRPCs[i]._nextPtr = (i+1 == rpcWkObj->params.maxActiveRPCs) ? NULL : &rpcWkObj->_allocatedRPCs[i+1];
     }
     
     return POLIP_OK;
 }
 
 polip_ret_code_t polip_rpc_workflow_teardown(polip_rpc_workflow_t* rpcWkObj) {
-    if (rpcWkObj->params.onHeap && rpcWkObj->activeRPCs != NULL) {
+    if (rpcWkObj->params.onHeap && rpcWkObj->_allocatedRPCs != NULL) {
         delete[] rpcWkObj->_allocatedRPCs;
-        rpcWkObj->activeRPCs = NULL;
+        rpcWkObj->_allocatedRPCs = NULL;
     }
 
     rpcWkObj->state._activePtr = NULL;
@@ -66,7 +66,7 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
     polip_rpc_t *nextEntry = NULL, *entry = rpcWkObj->state._activePtr;
 
     while (entry != NULL && !(singleEvent && eventCount >= 1 && polipCode == POLIP_OK)) {
-        nextEntry = entry._nextPtr;
+        nextEntry = entry->_nextPtr;
         entryDeleted = false;
 
         if (entry->_checked != rpcWkObj->state._masterCheckedBit && !entryDeleted) {
@@ -165,7 +165,7 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
 
         // check if uuid in list
         bool found = false;
-        for (polip_rpc_t* entry = rpcWkObj->state._activePtr; entry != NULL; entry = entry._nextPtr) {
+        for (polip_rpc_t* entry = rpcWkObj->state._activePtr; entry != NULL; entry = entry->_nextPtr) {
             if (uuid == entry->uuid) {
                 found = true;
                 entry->_checked = rpcWkObj->state._masterCheckedBit;

@@ -68,9 +68,6 @@
 #define POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, status) {      \
     (rpcPtr)->_nextStatus = status;                                             \
     (rpcWorkflowPtr)->flags.shouldPeriodicUpdate = true;                        \
-    if ((rpcWorkflowPtr)->params.pushAdditionalNotification) {                  \
-        (rpcPtr)->_pendingNotification = true;                                  \
-    }                                                                           \
 }
 
 #define POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWorkflowPtr, rpcPtr) (                             \
@@ -174,7 +171,7 @@ typedef struct _polip_rpc_workflow {
      * Configuration parameters for workflow algorithm
      */
     struct _polip_rpc_workflow_params {
-        unsigned int maxActivedRPCs = 1;  //! Number of RPCs allowed
+        unsigned int maxActiveRPCs = 1;  //! Number of RPCs allowed
         bool pushAdditionalNotification = false; //! In addition to pushing RPC status, also send message on notification route
         bool onHeap = true; //! Will allocate buffer on initialization
     } params;

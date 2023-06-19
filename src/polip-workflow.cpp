@@ -99,7 +99,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             )
         ),
         {}, 
-        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
     );
 
     // Push state to server
@@ -122,7 +122,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             if (wkObj->hooks.pushStateRespCb != NULL) {
                 wkObj->hooks.pushStateRespCb(wkObj->device, doc);
             }
-        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
     );
 
     // Poll server for state changes
@@ -153,7 +153,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
                     timestamp
                 );
             }
-        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE, retStatus
     );
 
     // Push sensor state to server
@@ -176,7 +176,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
                 wkObj->hooks.pushSenseRespCb(wkObj->device, doc);
             }
         },
-        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_SENSE
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_SENSE, retStatus
     );
 
     // Attempt to get sync value from server
@@ -195,7 +195,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             if (wkObj->hooks.valueRespCb != NULL) {
                 wkObj->hooks.valueRespCb(wkObj->device, doc);
             }
-        }, wkObj,doc, eventCount, false, POLIP_WORKFLOW_GET_VALUE
+        }, wkObj,doc, eventCount, false, POLIP_WORKFLOW_GET_VALUE, retStatus
     );
 
     return retStatus;
