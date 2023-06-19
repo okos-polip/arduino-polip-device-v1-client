@@ -14,7 +14,35 @@
 //  Libraries
 //==============================================================================
 
-#include "polip-client.hpp"
+#include "./polip-workflow.hpp"
+
+//==============================================================================
+//  Preprocessor Macro Declaration
+//==============================================================================
+
+#define WORKFLOW_EVENT_TEMPLATE(_condition_, _setup_, _req_, _res_,                 \
+        wkObjPtr, doc, eventCount, valueRetry, source, retStatus) {                 \
+    if ((_condition_ && !(wkObj->params.onlyOneEvent                                \
+                     && (wkObj->flags.getValue && !valueRetry)                      \
+                     && (eventCount >= 1)))) {                                      \
+        doc.clear();                                                                \
+        _setup_;                                                                    \
+        polip_ret_code_t polipCode = _req_;                                         \
+        if (polipCode == POLIP_ERROR_VALUE_MISMATCH && valueRetry) {                \
+            (wkObjPtr)->flags.getValue = true;                                      \
+        } else if (polipCode == POLIP_OK) {                                         \
+            _req_;                                                                  \
+        } else {                                                                    \
+            (wkObjPtr)->flags.error = polipCode;                                    \
+            retStatus = POLIP_ERROR_WORKFLOW;                                       \
+            if ((wkObjPtr)->hooks.workflowErrorCb != NULL) {                        \
+                (wkObjPtr)->hooks.workflowErrorCb((wkObjPtr)->device, doc, source); \
+            }                                                                       \
+        }                                                                           \
+        eventCount++;                                                               \
+        yield();                                                                    \
+    }                                                                               \
+}
 
 //==============================================================================
 //  Public Function Implementation
@@ -32,6 +60,11 @@ polip_ret_code_t polip_workflow_initialize(polip_workflow_t* wkObj, unsigned lon
     polip_ret_code_t status = POLIP_OK;
     if (wkObj->rpcWorkflow != NULL) {
         status = polip_rpc_workflow_initialize(wkObj->rpcWorkflow);
+
+        // If not already bound, then link general workflow error handler with RPC workflow error handler
+        if (wkObj->rpcWorkflow->hooks.workflowErrorCb == NULL) {
+            wkObj->rpcWorkflow->hooks.workflowErrorCb = wkObj->hooks.workflowErrorCb;
+        }
     }
     
     return status;
@@ -51,91 +84,61 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     unsigned int eventCount = 0;
 
     // Push RPC action to server
-    if (wkObj->rpcWorkflow != NULL && wkObj->rpcWorkflow->flags.shouldPeriodicUpdate) {
-        polip_ret_code_t polipCode = polip_rpc_workflow_periodic_update(
-            wkObj->rpcWorkflow,  
-            wkObj->device,
-            doc,
-            timestamp,
-            wkObj->params.onlyOneEvent
-        );
-
-        // Process response
-        if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
-            wkObj->flags.getValue = true;
-
-        } else if (polipCode != POLIP_OK) {
-            wkObj->flags.error = polipCode;
-            retStatus = POLIP_ERROR_WORKFLOW;
-            if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_PUSH_STATE);
-            }
-        }
-
-        eventCount++;
-        yield();
-    }
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->rpcWorkflow != NULL && wkObj->rpcWorkflow->flags.shouldPeriodicUpdate
+        ),
+        {},
+        (
+            polip_rpc_workflow_periodic_update(
+                wkObj->rpcWorkflow,  
+                wkObj->device,
+                doc,
+                timestamp,
+                wkObj->params.onlyOneEvent
+            )
+        ),
+        {}, 
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE
+    );
 
     // Push state to server
-    if (wkObj->flags.stateChanged && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue 
-            && (eventCount >= 1))) {
-        
-        // Create state structure
-        doc.clear();
-        if (wkObj->hooks.pushStateSetupCb != NULL) {
-            wkObj->hooks.pushStateSetupCb(wkObj->device, doc);
-        }
-
-        // Push state to server
-        polip_ret_code_t polipCode = polip_pushState(
-            wkObj->device, 
-            doc, 
-            timestamp
-        );
-
-        // Process response
-        if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
-            wkObj->flags.getValue = true;
-
-        } else if (polipCode == POLIP_OK) {
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->flags.stateChanged 
+        ), {
+            if (wkObj->hooks.pushStateSetupCb != NULL) {
+                wkObj->hooks.pushStateSetupCb(wkObj->device, doc);
+            }
+        }, (
+            polip_pushState(
+                wkObj->device, 
+                doc, 
+                timestamp
+            )
+        ), {
             wkObj->flags.stateChanged = false;
             wkObj->state.pollTimer = currentTime_ms; // Don't need to poll, current state just pushed
             if (wkObj->hooks.pushStateRespCb != NULL) {
                 wkObj->hooks.pushStateRespCb(wkObj->device, doc);
             }
-
-        } else {
-            wkObj->flags.error = polipCode;
-            retStatus = POLIP_ERROR_WORKFLOW;
-            if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_PUSH_STATE);
-            }
-        }
-
-        eventCount++;
-        yield();
-    }
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE
+    );
 
     // Poll server for state changes
-    if (!wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-            && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue && (eventCount >= 1))) {
-        
-        // Poll state from server
-        doc.clear();
-        polip_ret_code_t polipCode = polip_getState(
-            wkObj->device,
-            doc, 
-            timestamp,
-            wkObj->params.pollState,
-            wkObj->params.pollManufacturer,
-            (wkObj->rpcWorkflow != NULL)
-        );
-
-        // Process response
-        if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
-            wkObj->flags.getValue = true;
-            
-        } else if (polipCode == POLIP_OK) {
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+        ), {}, (
+            polip_getState(
+                wkObj->device,
+                doc, 
+                timestamp,
+                wkObj->params.pollState,
+                wkObj->params.pollManufacturer,
+                (wkObj->rpcWorkflow != NULL)
+            )
+        ), {
             wkObj->state.pollTimer = currentTime_ms;
             
             if (wkObj->hooks.pollStateRespCb != NULL) {
@@ -143,87 +146,57 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             }
 
             if (wkObj->rpcWorkflow != NULL) {
-                polip_rpc_workflow_poll_event(wkObj->rpcWorkflow, wkObj->device, doc, timestamp, wkObj->params.onlyOneEvent);
+                polip_rpc_workflow_poll_event(
+                    wkObj->rpcWorkflow, 
+                    wkObj->device, 
+                    doc, 
+                    timestamp
+                );
             }
-
-        } else {
-            wkObj->flags.error = polipCode;
-            retStatus = POLIP_ERROR_WORKFLOW;
-            if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_POLL_STATE);
-            }
-        }
-
-        eventCount++;
-        yield();
-    }
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE
+    );
 
     // Push sensor state to server
-    if ((wkObj->flags.senseChanged || (wkObj->params.pushSensePeriodic 
-            && (currentTime_ms - wkObj->state.senseTimer) >= wkObj->params.pushSenseTimeThreshold)) 
-            && !(wkObj->params.onlyOneEvent && wkObj->flags.getValue && (eventCount >= 1))) {
-        
-        // Create state structure
-        doc.clear();
-        if (wkObj->hooks.pushSenseSetupCb != NULL) {
-            wkObj->hooks.pushSenseSetupCb(wkObj->device, doc);
-        }
-
-        // Push sense to server
-        polip_ret_code_t polipCode = polip_pushSensors(
-            wkObj->device,
-            doc, 
-            timestamp
-        );
-
-        // Process response
-        if (polipCode == POLIP_ERROR_VALUE_MISMATCH) {
-            wkObj->flags.getValue = true;
-            
-        } else if (polipCode == POLIP_OK) {
+    WORKFLOW_EVENT_TEMPLATE(
+        (wkObj->flags.senseChanged || (wkObj->params.pushSensePeriodic &&
+            (currentTime_ms - wkObj->state.senseTimer) >= wkObj->params.pushSenseTimeThreshold)
+        ), {
+            if (wkObj->hooks.pushSenseSetupCb != NULL) {
+                wkObj->hooks.pushSenseSetupCb(wkObj->device, doc);
+            }
+        }, (
+            polip_pushSensors(
+                wkObj->device,
+                doc, 
+                timestamp
+            )
+        ), {
             wkObj->state.senseTimer = currentTime_ms;
             if (wkObj->hooks.pushSenseRespCb != NULL) {
                 wkObj->hooks.pushSenseRespCb(wkObj->device, doc);
             }
-
-        } else {
-            wkObj->flags.error = polipCode;
-            retStatus = POLIP_ERROR_WORKFLOW;
-            if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_PUSH_SENSE);
-            }
-        }
-
-        eventCount++;
-        yield();
-    }
+        },
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_SENSE
+    );
 
     // Attempt to get sync value from server
-    if (wkObj->flags.getValue && !(wkObj->params.onlyOneEvent && (eventCount >= 1))) {
-        wkObj->flags.getValue = false;
-        doc.clear();
-        
-        polip_ret_code_t polipCode = polip_getValue(
-            wkObj->device,
-            doc, 
-            timestamp
-        );
-        
-        if (polipCode != POLIP_OK) {
-            wkObj->flags.error = polipCode;
-            retStatus = POLIP_ERROR_WORKFLOW;
-            if (wkObj->hooks.workflowErrorCb != NULL) {
-                wkObj->hooks.workflowErrorCb(wkObj->device, doc, POLIP_WORKFLOW_GET_VALUE);
-            }
-        } else {
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->flags.getValue
+        ), {
+            wkObj->flags.getValue = false;
+        }, (
+            polip_getValue(
+                wkObj->device,
+                doc, 
+                timestamp
+            )
+        ), {
             if (wkObj->hooks.valueRespCb != NULL) {
                 wkObj->hooks.valueRespCb(wkObj->device, doc);
             }
-        }
-
-        eventCount++;
-        yield();
-    }
+        }, wkObj,doc, eventCount, false, POLIP_WORKFLOW_GET_VALUE
+    );
 
     return retStatus;
 }
