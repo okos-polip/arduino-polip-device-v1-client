@@ -59,41 +59,42 @@
     (rpcWorkflowPtr)->state.allowingNewRPCs = (state);                          \
 }
 
-#define POLIP_RPC_WORKFLOW_ASSIGN_CORE_HOOKS(rpcWorkflowPtr,
-        acceptRPC_fnt, cancelRPC_fnt) {
-    (rpcWorkflowPtr)->hooks.
+#define POLIP_RPC_WORKFLOW_ASSIGN_CORE_HOOKS(rpcWorkflowPtr,                    \
+        acceptRPC_fnt, cancelRPC_fnt) {                                         \
+    (rpcWorkflowPtr)->hooks.acceptRPC = acceptRPC_fnt;                          \
+    (rpcWorkflowPtr)->hooks.cancelRPC = cancelRPC_fnt;                          \
 }
 
-#define POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, status) {
-    (rpcPtr)->_nextStatus = status;
-    (rpcWorkflowPtr)->flags.shouldPeriodicUpdate = true;
-    if ((rpcWorkflowPtr)->params.pushAdditionalNotification) {
-        (rpcPtr)->_pendingNotification = true;
-    }
+#define POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, status) {      \
+    (rpcPtr)->_nextStatus = status;                                             \
+    (rpcWorkflowPtr)->flags.shouldPeriodicUpdate = true;                        \
+    if ((rpcWorkflowPtr)->params.pushAdditionalNotification) {                  \
+        (rpcPtr)->_pendingNotification = true;                                  \
+    }                                                                           \
 }
 
-#define POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_REJECTED)
+#define POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWorkflowPtr, rpcPtr) (                             \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_REJECTED)     \
 )
 
-#define POLIP_RPC_WORKFLOW_RPC_SUCCEEDED(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_SUCCESS)
+#define POLIP_RPC_WORKFLOW_RPC_SUCCEEDED(rpcWorkflowPtr, rpcPtr) (                          \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_SUCCESS)      \
 )
 
-#define POLIP_RPC_WORKFLOW_RPC_FAILED(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_FAILURE)
+#define POLIP_RPC_WORKFLOW_RPC_FAILED(rpcWorkflowPtr, rpcPtr) (                             \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_FAILURE)      \
 )
 
-#define POLIP_RPC_WORKFLOW_ACKNOWLEDGE_RPC(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_ACKNOWLEDGED)
+#define POLIP_RPC_WORKFLOW_ACKNOWLEDGE_RPC(rpcWorkflowPtr, rpcPtr) (                        \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_ACKNOWLEDGED) \
 )
 
-#define POLIP_RPC_WORKFLOW_CLIENT_SIDE_CANCEL_RPC(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_CANCELED)
+#define POLIP_RPC_WORKFLOW_CLIENT_SIDE_CANCEL_RPC(rpcWorkflowPtr, rpcPtr) (                 \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_CANCELED)     \
 )
 
-#define POLIP_RPC_WORKFLOW_CLIENT_SIDE_PENDING_RPC(rpcWorkflowPtr, rpcPtr) (
-    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_PENDING)
+#define POLIP_RPC_WORKFLOW_CLIENT_SIDE_PENDING_RPC(rpcWorkflowPtr, rpcPtr) (                \
+    POLIP_RPC_WORKFLOW_UPDATE_STATUS(rpcWorkflowPtr, rpcPtr, POLIP_RPC_STATUS_PENDING)      \
 )
 
 //==============================================================================
