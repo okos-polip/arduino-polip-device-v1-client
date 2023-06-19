@@ -75,7 +75,7 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
             if (rpcWkObj->hooks.shouldDeleteExtraRPC != NULL) {
                 if (rpcWkObj->hooks.shouldDeleteExtraRPC(dev, entry)) {
                     // Free RPC, will not throw error
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry);
+                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     entryDeleted = true;
                 } else {
                     // Keep arround
@@ -84,7 +84,7 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
             } else {
                 // Default behavior is to free, will throw error
                 
-                polip_rpc_workflow_free_rpc(rpcWkObj, entry);
+                polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                 polipCode = POLIP_ERROR_WORKFLOW;
                 entryDeleted = true;
             }
@@ -119,19 +119,19 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
                         entry->_nextStatus = POLIP_RPC_STATUS_PENDING;
                     } else if (entry->status == POLIP_RPC_STATUS_ACKNOWLEDGED) {
                         // Canceled, should free
-                        polip_rpc_workflow_free_rpc(rpcWkObj, entry);
+                        polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                         entryDeleted = true;
                     }
                 } else if (entry->status == POLIP_RPC_STATUS_SUCCESS 
                         || entry->status == POLIP_RPC_STATUS_FAILURE 
                         || entry->status == POLIP_RPC_STATUS_REJECTED) {
                     // Must have transitioned from a valid state into final, should free
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry);
+                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     entryDeleted = true;
                 } else if (entry->status == _RPC_STATUS_UNKNOWN) {
                     // Error occurred, call error handler then free RPC
                     rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC);
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry);
+                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     polipCode = POLIP_ERROR_WORKFLOW;
                     entryDeleted = true;
                 }
@@ -213,7 +213,7 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
         }
 
         // check if can accept another RPC
-        if (rpcWkObj->state.numActiveRPCs < rpcWkObj->params.maxActivedRPCs && rpcWkObj->state.allowingNewRPCs) {
+        if (rpcWkObj->state.numActiveRPCs < rpcWkObj->params.maxActiveRPCs && rpcWkObj->state.allowingNewRPCs) {
 
             // Add RPC to active list
             polip_rpc_t* entry = polip_rpc_workflow_new_rpc(
@@ -300,9 +300,9 @@ polip_rpc_t* polip_rpc_workflow_new_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rp
     }
 
     polip_rpc_t* rpcPtr = rpcWkObj->state._freePtr;
-    rpcWkObj->state._freePtr = rpcPtr._nextPtr;
+    rpcWkObj->state._freePtr = rpcPtr->_nextPtr;
     
-    rpcPtr._nextPtr = rpcWkObj->state._activePtr;
+    rpcPtr->_nextPtr = rpcWkObj->state._activePtr;
     rpcWkObj->state._activePtr = rpcPtr;
 
     rpcPtr->status = status;
@@ -320,30 +320,30 @@ polip_rpc_t* polip_rpc_workflow_new_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rp
     return rpcPtr;
 }
 
-bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rpc) {
+bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rpc, polip_device_t* dev) {
     if (rpcWkObj->state._activePtr == NULL || rpc == NULL) {
         return false; // No active or rpc is NULL, so nothing to free
     }
 
     if (rpcWkObj->hooks.freeRPC != NULL) {
-        rpcWkObj->hooks.freeRPC(dev, rpcPtr);
+        rpcWkObj->hooks.freeRPC(dev, rpc);
     }
 
     bool status = false;
     if (rpc == rpcWkObj->state._activePtr) {
         // First element case - easy
-        rpcWkObj->state._activePtr = rpc._nextPtr;
-        rpc._nextPtr = rpcWkObj->state._freePtr;
+        rpcWkObj->state._activePtr = rpc->_nextPtr;
+        rpc->_nextPtr = rpcWkObj->state._freePtr;
         rpcWkObj->state._freePtr = rpc;
         status = true;
 
     } else {
         // Need to search within list (start at child of 0th element)
-        for (polip_rpc_t* parent = rpcWkObj->state._activePtr; parent != NULL; parent = parent._nextPtr) {
+        for (polip_rpc_t* parent = rpcWkObj->state._activePtr; parent != NULL; parent = parent->_nextPtr) {
             if (parent._nextPtr == rpc) {
                 // Found slice point
-                parent._nextPtr = rpc._nextPtr;
-                rpc._nextPtr = rpcWkObj->state._freePtr;
+                parent->_nextPtr = rpc->_nextPtr;
+                rpc->_nextPtr = rpcWkObj->state._freePtr;
                 rpcWkObj->state._freePtr = rpc;
                 status = true;
                 break;
@@ -359,7 +359,7 @@ bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rp
 }
 
 polip_rpc_t* polip_rpc_workflow_get_rpc_by_uuid(polip_rpc_workflow_t* rpcWkObj, const char* uuid) {
-    for (polip_rpc_t* entry = rpcWkObj->state._activePtr; entry != NULL; entry = entry._nextPtr) {
+    for (polip_rpc_t* entry = rpcWkObj->state._activePtr; entry != NULL; entry = entry->_nextPtr) {
         if (strcmp(entry->uuid, uuid) == 0) {
             return entry;
         }

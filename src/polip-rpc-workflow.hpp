@@ -234,7 +234,7 @@ polip_rpc_status_t polip_rpc_status_str2enum(const char* str);
 polip_rpc_t* polip_rpc_workflow_new_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_status_t status, 
         const char* uuid, const char* type, JsonObject& paramObj, polip_device_t* dev);
 
-bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rpc);
+bool polip_rpc_workflow_free_rpc(polip_rpc_workflow_t* rpcWkObj, polip_rpc_t* rpc, polip_device_t* dev);
 
 polip_rpc_t* polip_rpc_workflow_get_rpc_by_uuid(polip_rpc_workflow_t* rpcWkObj, const char* uuid);
 
