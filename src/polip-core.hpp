@@ -21,6 +21,8 @@
 #define POLIP_VERBOSE_DEBUG                         (true)
 #endif
 
+#define POLIP_LIB_VERSION                           POLIP_VERSION_STD_FORMAT(0,0,1)
+
 //==============================================================================
 //  Preprocessor Macros
 //==============================================================================

@@ -22,9 +22,9 @@
 
 #define WORKFLOW_EVENT_TEMPLATE(_condition_, _setup_, _req_, _res_,                 \
         wkObjPtr, doc, eventCount, valueRetry, source, retStatus) {                 \
-    if ((_condition_ && !(wkObj->params.onlyOneEvent                                \
-                     && (wkObj->flags.getValue && !valueRetry)                      \
-                     && (eventCount >= 1)))) {                                      \
+    if ((_condition_) && !(wkObj->params.onlyOneEvent                               \
+                      && (wkObj->flags.getValue && !valueRetry)                     \
+                      && (eventCount >= 1))) {                                      \
         doc.clear();                                                                \
         _setup_;                                                                    \
         polip_ret_code_t polipCode = _req_;                                         \
