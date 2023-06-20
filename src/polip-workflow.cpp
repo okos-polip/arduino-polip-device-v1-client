@@ -145,14 +145,14 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
                 wkObj->hooks.pollStateRespCb(wkObj->device, doc);
             }
 
-            if (wkObj->rpcWorkflow != NULL) {
-                polip_rpc_workflow_poll_event(
-                    wkObj->rpcWorkflow, 
-                    wkObj->device, 
-                    doc, 
-                    timestamp
-                );
-            }
+            // if (wkObj->rpcWorkflow != NULL) {
+            //     polip_rpc_workflow_poll_event(
+            //         wkObj->rpcWorkflow, 
+            //         wkObj->device, 
+            //         doc, 
+            //         timestamp
+            //     );
+            // }
         }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE, retStatus
     );
 
