@@ -15,6 +15,8 @@
 //  Libraries
 //==============================================================================
 
+#include <Arduino.h> //TODO remove
+
 #include "./polip-rpc-workflow.hpp"
 
 //==============================================================================
@@ -65,17 +67,18 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
     bool entryDeleted = false;
     polip_rpc_t *nextEntry = NULL, *entry = rpcWkObj->state._activePtr;
 
+    Serial.println("RPC Periodic Event");
+
     while (entry != NULL && !(singleEvent && eventCount >= 1 && polipCode == POLIP_OK)) {
-        nextEntry = entry->_nextPtr;
         entryDeleted = false;
 
         if (entry->_checked != rpcWkObj->state._masterCheckedBit && !entryDeleted) {
+            Serial.println("RPC check mismatch");
             // RPC entry was not in last server poll list
 
             if (rpcWkObj->hooks.shouldDeleteExtraRPC != NULL) {
                 if (rpcWkObj->hooks.shouldDeleteExtraRPC(dev, entry)) {
                     // Free RPC, will not throw error
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     entryDeleted = true;
                 } else {
                     // Keep arround
@@ -83,8 +86,6 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
                 }
             } else {
                 // Default behavior is to free, will throw error
-                
-                polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                 polipCode = POLIP_ERROR_WORKFLOW;
                 entryDeleted = true;
             }
@@ -97,6 +98,7 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
         }
         
         if (entry->status != entry->_nextStatus && !entryDeleted) {
+            Serial.println("Update server state");
             // Need to update server state
 
             polip_rpc_status_t oldStatus = entry->status;
@@ -111,6 +113,8 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
             );
 
             if (polipCode == POLIP_OK) {
+                Serial.println("Push successful");
+                
                 // transition graph to next state, may free
                 if (oldStatus == POLIP_RPC_STATUS_CANCELED) {
                     if (entry->status == POLIP_RPC_STATUS_REJECTED) {
@@ -119,19 +123,16 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
                         entry->_nextStatus = POLIP_RPC_STATUS_PENDING;
                     } else if (entry->status == POLIP_RPC_STATUS_ACKNOWLEDGED) {
                         // Canceled, should free
-                        polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                         entryDeleted = true;
                     }
                 } else if (entry->status == POLIP_RPC_STATUS_SUCCESS 
                         || entry->status == POLIP_RPC_STATUS_FAILURE 
                         || entry->status == POLIP_RPC_STATUS_REJECTED) {
                     // Must have transitioned from a valid state into final, should free
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     entryDeleted = true;
                 } else if (entry->status == _RPC_STATUS_UNKNOWN) {
                     // Error occurred, call error handler then free RPC
                     rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC);
-                    polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
                     polipCode = POLIP_ERROR_WORKFLOW;
                     entryDeleted = true;
                 }
@@ -144,6 +145,12 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
             }
         }
 
+        nextEntry = entry->_nextPtr;
+
+        if (entryDeleted) {
+            polip_rpc_workflow_free_rpc(rpcWkObj, entry, dev);
+        }
+
         entry = nextEntry;
     }
 
@@ -152,6 +159,8 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
 
 polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, polip_device_t* dev, 
         JsonDocument& doc, const char* timestamp) {
+
+    Serial.println("RPC Poll Event");
 
     // Flipping this state, to catch non-changed rpc._checked fields
     rpcWkObj->state._masterCheckedBit = !rpcWkObj->state._masterCheckedBit;
@@ -230,8 +239,10 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
                 // If comes in as pending then accept and ack
                 if (rpcWkObj->hooks.acceptRPC(dev, entry, paramObj)) {
                     POLIP_RPC_WORKFLOW_ACKNOWLEDGE_RPC(rpcWkObj, entry);
+                    Serial.println("Acknowledged new");
                 } else {
                     POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
+                    Serial.println("Rejected new");
                 }
 
             } else if (status == POLIP_RPC_STATUS_CANCELED) {
