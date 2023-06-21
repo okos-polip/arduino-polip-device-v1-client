@@ -87,35 +87,41 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
 
     // Serial.println(currentTime_ms);
 
-    Serial.print(wkObj->flags.stateChanged);
-    Serial.print(", ");
-    Serial.print(currentTime_ms);
-    Serial.print(", ");
-    Serial.print(wkObj->state.pollTimer);
-    Serial.print(", ");
-    Serial.print(wkObj->params.pollStateTimeThreshold);
-    Serial.print(", ");
-    Serial.println((
-        !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-    ));
+    // Serial.print(wkObj->flags.stateChanged);
+    // Serial.print(", ");
+    // Serial.print(currentTime_ms);
+    // Serial.print(", ");
+    // Serial.print(wkObj->state.pollTimer);
+    // Serial.print(", ");
+    // Serial.print(wkObj->params.pollStateTimeThreshold);
+    // Serial.print(", ");
+    // Serial.println((
+    //     !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+    // ));
 
-    WORKFLOW_EVENT_TEMPLATE(
-        (
-            !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-        ),
-        {
-            Serial.print("Setup @ ");
-            Serial.println(currentTime_ms);
-        },
-        (
-            POLIP_OK
-        ),
-        {
-            wkObj->state.pollTimer = currentTime_ms;
-            Serial.println("Handler");
-        },
-        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
-    );
+    // WORKFLOW_EVENT_TEMPLATE(
+    //     (
+    //         !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+    //     ),
+    //     {
+    //         Serial.print("Setup @ ");
+    //         Serial.println(currentTime_ms);
+    //     },
+    //     (
+    //         POLIP_OK
+    //     ),
+    //     {
+    //         wkObj->state.pollTimer = currentTime_ms;
+    //         Serial.println("Handler");
+    //     },
+    //     wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
+    // );
+
+
+
+
+
+
 
     // // Push RPC action to server
     // WORKFLOW_EVENT_TEMPLATE(
@@ -136,101 +142,101 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     //     wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
     // );
 
-    // // Push state to server
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (
-    //         wkObj->flags.stateChanged 
-    //     ), {
-    //         if (wkObj->hooks.pushStateSetupCb != NULL) {
-    //             wkObj->hooks.pushStateSetupCb(wkObj->device, doc);
-    //         }
-    //     }, (
-    //         polip_pushState(
-    //             wkObj->device, 
-    //             doc, 
-    //             timestamp
-    //         )
-    //     ), {
-    //         wkObj->flags.stateChanged = false;
-    //         wkObj->state.pollTimer = currentTime_ms; // Don't need to poll, current state just pushed
-    //         if (wkObj->hooks.pushStateRespCb != NULL) {
-    //             wkObj->hooks.pushStateRespCb(wkObj->device, doc);
-    //         }
-    //     }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
-    // );
+    // Push state to server
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->flags.stateChanged 
+        ), {
+            if (wkObj->hooks.pushStateSetupCb != NULL) {
+                wkObj->hooks.pushStateSetupCb(wkObj->device, doc);
+            }
+        }, (
+            polip_pushState(
+                wkObj->device, 
+                doc, 
+                timestamp
+            )
+        ), {
+            wkObj->flags.stateChanged = false;
+            wkObj->state.pollTimer = currentTime_ms; // Don't need to poll, current state just pushed
+            if (wkObj->hooks.pushStateRespCb != NULL) {
+                wkObj->hooks.pushStateRespCb(wkObj->device, doc);
+            }
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
+    );
 
-    // // Poll server for state changes
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (
-    //         !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-    //     ), {}, (
-    //         polip_getState(
-    //             wkObj->device,
-    //             doc, 
-    //             timestamp,
-    //             wkObj->params.pollState,
-    //             wkObj->params.pollManufacturer,
-    //             (wkObj->rpcWorkflow != NULL)
-    //         )
-    //     ), {
-    //         wkObj->state.pollTimer = currentTime_ms;
+    // Poll server for state changes
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+        ), {}, (
+            polip_getState(
+                wkObj->device,
+                doc, 
+                timestamp,
+                wkObj->params.pollState,
+                wkObj->params.pollManufacturer,
+                (wkObj->rpcWorkflow != NULL)
+            )
+        ), {
+            wkObj->state.pollTimer = currentTime_ms;
             
-    //         if (wkObj->hooks.pollStateRespCb != NULL) {
-    //             wkObj->hooks.pollStateRespCb(wkObj->device, doc);
-    //         }
+            if (wkObj->hooks.pollStateRespCb != NULL) {
+                wkObj->hooks.pollStateRespCb(wkObj->device, doc);
+            }
 
-    //         // if (wkObj->rpcWorkflow != NULL) {
-    //         //     polip_rpc_workflow_poll_event(
-    //         //         wkObj->rpcWorkflow, 
-    //         //         wkObj->device, 
-    //         //         doc, 
-    //         //         timestamp
-    //         //     );
-    //         // }
-    //     }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE, retStatus
-    // );
+            // if (wkObj->rpcWorkflow != NULL) {
+            //     polip_rpc_workflow_poll_event(
+            //         wkObj->rpcWorkflow, 
+            //         wkObj->device, 
+            //         doc, 
+            //         timestamp
+            //     );
+            // }
+        }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE, retStatus
+    );
 
-    // // Push sensor state to server
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (wkObj->flags.senseChanged || (wkObj->params.pushSensePeriodic &&
-    //         (currentTime_ms - wkObj->state.senseTimer) >= wkObj->params.pushSenseTimeThreshold)
-    //     ), {
-    //         if (wkObj->hooks.pushSenseSetupCb != NULL) {
-    //             wkObj->hooks.pushSenseSetupCb(wkObj->device, doc);
-    //         }
-    //     }, (
-    //         polip_pushSensors(
-    //             wkObj->device,
-    //             doc, 
-    //             timestamp
-    //         )
-    //     ), {
-    //         wkObj->state.senseTimer = currentTime_ms;
-    //         if (wkObj->hooks.pushSenseRespCb != NULL) {
-    //             wkObj->hooks.pushSenseRespCb(wkObj->device, doc);
-    //         }
-    //     },
-    //     wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_SENSE, retStatus
-    // );
+    // Push sensor state to server
+    WORKFLOW_EVENT_TEMPLATE(
+        (wkObj->flags.senseChanged || (wkObj->params.pushSensePeriodic &&
+            (currentTime_ms - wkObj->state.senseTimer) >= wkObj->params.pushSenseTimeThreshold)
+        ), {
+            if (wkObj->hooks.pushSenseSetupCb != NULL) {
+                wkObj->hooks.pushSenseSetupCb(wkObj->device, doc);
+            }
+        }, (
+            polip_pushSensors(
+                wkObj->device,
+                doc, 
+                timestamp
+            )
+        ), {
+            wkObj->state.senseTimer = currentTime_ms;
+            if (wkObj->hooks.pushSenseRespCb != NULL) {
+                wkObj->hooks.pushSenseRespCb(wkObj->device, doc);
+            }
+        },
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_SENSE, retStatus
+    );
 
-    // // Attempt to get sync value from server
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (
-    //         wkObj->flags.getValue
-    //     ), {
-    //         wkObj->flags.getValue = false;
-    //     }, (
-    //         polip_getValue(
-    //             wkObj->device,
-    //             doc, 
-    //             timestamp
-    //         )
-    //     ), {
-    //         if (wkObj->hooks.valueRespCb != NULL) {
-    //             wkObj->hooks.valueRespCb(wkObj->device, doc);
-    //         }
-    //     }, wkObj,doc, eventCount, false, POLIP_WORKFLOW_GET_VALUE, retStatus
-    // );
+    // Attempt to get sync value from server
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->flags.getValue
+        ), {
+            wkObj->flags.getValue = false;
+        }, (
+            polip_getValue(
+                wkObj->device,
+                doc, 
+                timestamp
+            )
+        ), {
+            if (wkObj->hooks.valueRespCb != NULL) {
+                wkObj->hooks.valueRespCb(wkObj->device, doc);
+            }
+        }, wkObj,doc, eventCount, false, POLIP_WORKFLOW_GET_VALUE, retStatus
+    );
 
     return retStatus;
 }
