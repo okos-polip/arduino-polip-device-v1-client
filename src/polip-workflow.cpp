@@ -85,7 +85,24 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     polip_ret_code_t retStatus = POLIP_OK;
     unsigned int eventCount = 0;
 
-    Serial.println(currentTime_ms);
+    // Serial.println(currentTime_ms);
+
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+        ),
+        {
+            Serial.print("Setup @ ");
+            Serial.println(currentTime_ms);
+        },
+        (
+            POLIP_OK
+        ),
+        {
+            Serial.println("Handler");
+        },
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
+    );
 
     // // Push RPC action to server
     // WORKFLOW_EVENT_TEMPLATE(
