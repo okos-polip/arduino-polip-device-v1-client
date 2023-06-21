@@ -36,7 +36,7 @@
             (wkObjPtr)->flags.error = polipCode;                                    \
             retStatus = POLIP_ERROR_WORKFLOW;                                       \
             if ((wkObjPtr)->hooks.workflowErrorCb != NULL) {                        \
-                (wkObjPtr)->hooks.workflowErrorCb((wkObjPtr)->device, doc, source); \
+                (wkObjPtr)->hooks.workflowErrorCb((wkObjPtr)->device, doc, source, polipCode); \
             }                                                                       \
         }                                                                           \
         eventCount++;                                                               \

@@ -104,7 +104,7 @@ typedef struct _polip_workflow {
         void (*valueRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
         void (*pushSenseSetupCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
         void (*pushSenseRespCb)(polip_device_t* dev, JsonDocument& doc) = NULL;
-        void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
+        void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source, polip_ret_code_t error) = NULL;
     } hooks;
     
     /**

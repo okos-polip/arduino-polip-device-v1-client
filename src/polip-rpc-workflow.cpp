@@ -24,8 +24,12 @@
 //==============================================================================
 
 polip_ret_code_t polip_rpc_workflow_initialize(polip_rpc_workflow_t* rpcWkObj) {
-    if (rpcWkObj->_allocatedRPCs != NULL && rpcWkObj->params.onHeap) {
+    if (rpcWkObj->hooks.acceptRPC == NULL || rpcWkObj->hooks.cancelRPC == NULL) {
+        return POLIP_ERROR_MISSING_HOOK;
+    } else if (rpcWkObj->_allocatedRPCs != NULL && rpcWkObj->params.onHeap) {
         return POLIP_ERROR_WORKFLOW;
+    } else if (rpcWkObj->hooks.pushNotifactionSetup == NULL && rpcWkObj->params.pushAdditionalNotification) {
+        return POLIP_ERROR_MISSING_HOOK;
     }
 
     rpcWkObj->_allocatedRPCs = new polip_rpc_t[rpcWkObj->params.maxActiveRPCs];
@@ -239,10 +243,8 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
                 // If comes in as pending then accept and ack
                 if (rpcWkObj->hooks.acceptRPC(dev, entry, paramObj)) {
                     POLIP_RPC_WORKFLOW_ACKNOWLEDGE_RPC(rpcWkObj, entry);
-                    Serial.println("Acknowledged new RPC");
                 } else {
                     POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
-                    Serial.println("Rejected new RPC");
                 }
 
             } else if (status == POLIP_RPC_STATUS_CANCELED) {
@@ -412,7 +414,7 @@ polip_ret_code_t polip_rpc_workflow_push_status(polip_rpc_workflow_t* rpcWkObj, 
             if (rpcWkObj->hooks.pushNotifactionSetup != NULL) {
                 rpcWkObj->hooks.pushNotifactionSetup(dev, rpc, doc);
             } else if (rpcWkObj->hooks.workflowErrorCb != NULL) {
-                rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC);
+                rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC, POLIP_ERROR_MISSING_HOOK);
             }
 
             polipCode = polip_pushNotification(
@@ -425,7 +427,7 @@ polip_ret_code_t polip_rpc_workflow_push_status(polip_rpc_workflow_t* rpcWkObj, 
                 if (rpcWkObj->hooks.pushNotifactionResponse != NULL) {
                     rpcWkObj->hooks.pushNotifactionResponse(dev, rpc, doc);
                 } else if (rpcWkObj->hooks.workflowErrorCb != NULL) {
-                    rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC);
+                    rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC, POLIP_ERROR_MISSING_HOOK);
                 }
             }
         }

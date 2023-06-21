@@ -190,7 +190,7 @@ typedef struct _polip_rpc_workflow {
         void (*pushNotifactionSetup)(polip_device_t* dev, polip_rpc_t* rpc, JsonDocument& doc) = NULL;
         void (*pushNotifactionResponse)(polip_device_t* dev, polip_rpc_t* rpc, JsonDocument& doc) = NULL;
         bool (*shouldDeleteExtraRPC)(polip_device_t* dev, polip_rpc_t* rpc) = NULL;
-        void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source) = NULL;
+        void (*workflowErrorCb)(polip_device_t* dev, JsonDocument& doc, polip_workflow_source_t source, polip_ret_code_t error) = NULL;
     } hooks;
 
     /**
