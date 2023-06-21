@@ -114,7 +114,7 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
 
             if (polipCode == POLIP_OK) {
                 Serial.println("Push successful");
-                
+
                 // transition graph to next state, may free
                 if (oldStatus == POLIP_RPC_STATUS_CANCELED) {
                     if (entry->status == POLIP_RPC_STATUS_REJECTED) {
@@ -239,10 +239,10 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
                 // If comes in as pending then accept and ack
                 if (rpcWkObj->hooks.acceptRPC(dev, entry, paramObj)) {
                     POLIP_RPC_WORKFLOW_ACKNOWLEDGE_RPC(rpcWkObj, entry);
-                    Serial.println("Acknowledged new");
+                    Serial.println("Acknowledged new RPC");
                 } else {
                     POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
-                    Serial.println("Rejected new");
+                    Serial.println("Rejected new RPC");
                 }
 
             } else if (status == POLIP_RPC_STATUS_CANCELED) {
@@ -262,6 +262,8 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
             continue;
         }
     }
+
+    return POLIP_OK;
 }
 
 const char* polip_rpc_status_enum2str(polip_rpc_status_t status) {

@@ -14,6 +14,8 @@
 //  Libraries
 //==============================================================================
 
+#include <Arduino.h>
+
 #include "./polip-workflow.hpp"
 
 //==============================================================================
@@ -83,6 +85,8 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     polip_ret_code_t retStatus = POLIP_OK;
     unsigned int eventCount = 0;
 
+    Serial.println("Workflow periodic update");
+
     // Push RPC action to server
     WORKFLOW_EVENT_TEMPLATE(
         (
@@ -146,7 +150,7 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
             }
 
             if (wkObj->rpcWorkflow != NULL) {
-                polip_rpc_workflow_poll_event(
+                retStatus = polip_rpc_workflow_poll_event(
                     wkObj->rpcWorkflow, 
                     wkObj->device, 
                     doc, 
