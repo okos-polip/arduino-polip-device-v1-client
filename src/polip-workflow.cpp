@@ -33,7 +33,7 @@
         if (polipCode == POLIP_ERROR_VALUE_MISMATCH && valueRetry) {                \
             (wkObjPtr)->flags.getValue = true;                                      \
         } else if (polipCode == POLIP_OK) {                                         \
-            _req_;                                                                  \
+            _res_;                                                                  \
         } else {                                                                    \
             (wkObjPtr)->flags.error = polipCode;                                    \
             retStatus = POLIP_ERROR_WORKFLOW;                                       \
