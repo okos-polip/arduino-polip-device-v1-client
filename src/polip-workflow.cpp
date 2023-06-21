@@ -14,8 +14,6 @@
 //  Libraries
 //==============================================================================
 
-#include <Arduino.h>
-
 #include "./polip-workflow.hpp"
 
 //==============================================================================
@@ -85,62 +83,24 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
     polip_ret_code_t retStatus = POLIP_OK;
     unsigned int eventCount = 0;
 
-    // Serial.println(currentTime_ms);
-
-    // Serial.print(wkObj->flags.stateChanged);
-    // Serial.print(", ");
-    // Serial.print(currentTime_ms);
-    // Serial.print(", ");
-    // Serial.print(wkObj->state.pollTimer);
-    // Serial.print(", ");
-    // Serial.print(wkObj->params.pollStateTimeThreshold);
-    // Serial.print(", ");
-    // Serial.println((
-    //     !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-    // ));
-
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (
-    //         !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
-    //     ),
-    //     {
-    //         Serial.print("Setup @ ");
-    //         Serial.println(currentTime_ms);
-    //     },
-    //     (
-    //         POLIP_OK
-    //     ),
-    //     {
-    //         wkObj->state.pollTimer = currentTime_ms;
-    //         Serial.println("Handler");
-    //     },
-    //     wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
-    // );
-
-
-
-
-
-
-
-    // // Push RPC action to server
-    // WORKFLOW_EVENT_TEMPLATE(
-    //     (
-    //         wkObj->rpcWorkflow != NULL && wkObj->rpcWorkflow->flags.shouldPeriodicUpdate
-    //     ),
-    //     {},
-    //     (
-    //         polip_rpc_workflow_periodic_update(
-    //             wkObj->rpcWorkflow,  
-    //             wkObj->device,
-    //             doc,
-    //             timestamp,
-    //             wkObj->params.onlyOneEvent
-    //         )
-    //     ),
-    //     {}, 
-    //     wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
-    // );
+    // Push RPC action to server
+    WORKFLOW_EVENT_TEMPLATE(
+        (
+            wkObj->rpcWorkflow != NULL && wkObj->rpcWorkflow->flags.shouldPeriodicUpdate
+        ),
+        {},
+        (
+            polip_rpc_workflow_periodic_update(
+                wkObj->rpcWorkflow,  
+                wkObj->device,
+                doc,
+                timestamp,
+                wkObj->params.onlyOneEvent
+            )
+        ),
+        {}, 
+        wkObj,doc, eventCount, true, POLIP_WORKFLOW_PUSH_STATE, retStatus
+    );
 
     // Push state to server
     WORKFLOW_EVENT_TEMPLATE(
@@ -185,14 +145,14 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
                 wkObj->hooks.pollStateRespCb(wkObj->device, doc);
             }
 
-            // if (wkObj->rpcWorkflow != NULL) {
-            //     polip_rpc_workflow_poll_event(
-            //         wkObj->rpcWorkflow, 
-            //         wkObj->device, 
-            //         doc, 
-            //         timestamp
-            //     );
-            // }
+            if (wkObj->rpcWorkflow != NULL) {
+                polip_rpc_workflow_poll_event(
+                    wkObj->rpcWorkflow, 
+                    wkObj->device, 
+                    doc, 
+                    timestamp
+                );
+            }
         }, wkObj,doc, eventCount, true, POLIP_WORKFLOW_POLL_STATE, retStatus
     );
 
