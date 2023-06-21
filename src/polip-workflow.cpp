@@ -87,6 +87,10 @@ polip_ret_code_t polip_workflow_periodic_update(polip_workflow_t* wkObj,
 
     // Serial.println(currentTime_ms);
 
+    Serial.println((
+        !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
+    ));
+
     WORKFLOW_EVENT_TEMPLATE(
         (
             !wkObj->flags.stateChanged && ((currentTime_ms - wkObj->state.pollTimer) >= wkObj->params.pollStateTimeThreshold) 
