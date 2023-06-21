@@ -136,8 +136,8 @@ polip_ret_code_t polip_rpc_workflow_periodic_update(polip_rpc_workflow_t* rpcWkO
                     entryDeleted = true;
                 } else if (entry->status == _RPC_STATUS_UNKNOWN) {
                     // Error occurred, call error handler then free RPC
-                    rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC);
-                    polipCode = POLIP_ERROR_WORKFLOW;
+                    rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC, POLIP_ERROR_RPC_SETTING);
+                    polipCode = POLIP_ERROR_RPC_SETTING;
                     entryDeleted = true;
                 }
             }

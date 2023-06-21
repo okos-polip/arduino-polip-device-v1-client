@@ -48,7 +48,8 @@ typedef enum _polip_ret_code {
     POLIP_ERROR_SERVER_ERROR,
     POLIP_ERROR_LIB_REQUEST,
     POLIP_ERROR_WORKFLOW,
-    POLIP_ERROR_MISSING_HOOK
+    POLIP_ERROR_MISSING_HOOK,
+    POLIP_ERROR_RPC_SETTING
 } polip_ret_code_t;
 
 /**
