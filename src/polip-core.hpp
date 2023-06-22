@@ -18,7 +18,7 @@
 
 //! Allows POLIP lib to print out debug information on serial bus
 #ifndef POLIP_VERBOSE_DEBUG
-#define POLIP_VERBOSE_DEBUG                         (true)
+#define POLIP_VERBOSE_DEBUG                         (false)
 #endif
 
 #define POLIP_LIB_VERSION                           POLIP_VERSION_STD_FORMAT(0,0,1)
