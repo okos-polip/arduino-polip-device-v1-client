@@ -259,6 +259,7 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
                 // Already in some weird state, just reject the RPC
                 POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
             }
+            
         } else {
             // Can't add this RPC to list so continue on to next in server's list to see if we need to process it
             continue;
