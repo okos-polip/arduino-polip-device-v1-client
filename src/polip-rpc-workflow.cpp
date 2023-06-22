@@ -207,7 +207,7 @@ polip_ret_code_t polip_rpc_workflow_poll_event(polip_rpc_workflow_t* rpcWkObj, p
                         POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
                     }
 
-                } else if (status != POLIP_RPC_STATUS_PENDING) {
+                } else if (status != POLIP_RPC_STATUS_ACKNOWLEDGED) {
                     POLIP_RPC_WORKFLOW_REJECT_RPC(rpcWkObj, entry);
                 }
                 // else should be acknowledge state -  anything else is server error
@@ -426,8 +426,6 @@ polip_ret_code_t polip_rpc_workflow_push_status(polip_rpc_workflow_t* rpcWkObj, 
             if (polipCode == POLIP_OK) {    
                 if (rpcWkObj->hooks.pushNotifactionResponse != NULL) {
                     rpcWkObj->hooks.pushNotifactionResponse(dev, rpc, doc);
-                } else if (rpcWkObj->hooks.workflowErrorCb != NULL) {
-                    rpcWkObj->hooks.workflowErrorCb(dev, doc, POLIP_WORKFLOW_PUSH_RPC, POLIP_ERROR_MISSING_HOOK);
                 }
             }
         }
