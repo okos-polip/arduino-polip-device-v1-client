@@ -52,7 +52,7 @@ polip_ret_code_t polip_checkServerStatus() {
     WiFiClient client;
     HTTPClient http;
 
-    http.begin(client, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/");
+    http.begin(client, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/health/check");
     int code = http.GET();
     http.end();
 
@@ -63,7 +63,7 @@ polip_ret_code_t polip_getState(polip_device_t* dev, JsonDocument& doc, const ch
         bool queryState, bool queryManufacturer, bool queryRPC) {
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/poll" "?state=%s&manufacturer=%s&rpc=%s",
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/poll" "?state=%s&manufacturer=%s&rpc=%s",
         (queryState) ? "true" : "false",
         (queryManufacturer) ? "true" : "false",
         (queryRPC) ? "true" : "false"
@@ -76,7 +76,7 @@ polip_ret_code_t polip_getMeta(polip_device_t* dev, JsonDocument& doc, const cha
         bool queryState, bool querySensors, bool queryManufacturer, bool queryGeneral) {
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/meta" "?state=%s&manufacturer=%s&sensors=%s&general=%s",
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/meta" "?state=%s&manufacturer=%s&sensors=%s&general=%s",
         (queryState) ? "true" : "false",
         (queryManufacturer) ? "true" : "false",
         (querySensors) ? "true" : "false",
@@ -92,7 +92,7 @@ polip_ret_code_t polip_pushState(polip_device_t* dev, JsonDocument& doc, const c
     }
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/state");
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/state");
 
     return _requestTemplate(dev, doc, timestamp, uri);
 }
@@ -103,7 +103,7 @@ polip_ret_code_t polip_pushError(polip_device_t* dev, JsonDocument& doc, const c
     }
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/error");
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/error");
 
     return _requestTemplate(dev, doc, timestamp, uri);
 }
@@ -114,14 +114,14 @@ polip_ret_code_t polip_pushSensors(polip_device_t* dev, JsonDocument& doc, const
     }
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/sense");
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/sense");
 
     return _requestTemplate(dev, doc, timestamp, uri);
 }
 
 polip_ret_code_t polip_getValue(polip_device_t* dev, JsonDocument& doc, const char* timestamp) {
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
-    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/v1/device/value");
+    sprintf(uri, POLIP_DEVICE_INGEST_SERVER_URL "/api/device/v1/value");
 
     polip_ret_code_t status = _requestTemplate(dev, doc, timestamp, uri,
         true, // skip value in request pack 
