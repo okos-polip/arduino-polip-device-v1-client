@@ -144,6 +144,11 @@ polip_ret_code_t polip_pushRPC(polip_device_t* dev, JsonDocument& doc, const cha
         return POLIP_ERROR_LIB_REQUEST;
     } else if (!doc["rpc"].containsKey("status")) {
         return POLIP_ERROR_LIB_REQUEST;
+    } 
+
+    if (!doc["rpc"].containsKey("timestamp")) {
+        // Append timestamp only if not explicitly provided
+        doc["rpc"]["timestamp"] = timestamp;
     }
 
     char uri[POLIP_QUERY_URI_BUFFER_SIZE];
