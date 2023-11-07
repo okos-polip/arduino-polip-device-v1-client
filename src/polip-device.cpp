@@ -39,7 +39,7 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
         bool skipTag = false);
 static void _packRequest(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, bool skipValue = false, bool skipTag = false);
-static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint);
+static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint, bool debug);
 static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc);
 static void _array2string(uint8_t array[], unsigned int len, char buffer[]);
 
@@ -185,7 +185,7 @@ polip_ret_code_t polip_getErrorSemanticFromCode(polip_device_t* dev, int32_t cod
 static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, const char* endpoint, bool skipValue, bool skipTag) {
     _packRequest(dev, doc, timestamp, skipValue, skipTag);
-    _ret_t ret = _sendPostRequest(doc, endpoint);
+    _ret_t ret = _sendPostRequest(doc, endpoint, dev->debugMode);
 
     if (ret.jsonCode) {
         return POLIP_ERROR_RESPONSE_DESERIALIZATION;
@@ -237,7 +237,7 @@ static void _packRequest(polip_device_t* dev, JsonDocument& doc,
     }
 }
 
-static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
+static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint, bool debug) {
     _ret_t retVal;
     char buffer[POLIP_ARBITRARY_MSG_BUFFER_SIZE];
     WiFiClient client;
@@ -248,7 +248,7 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
 
     serializeJson(doc, buffer);
 
-    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
+    if (debug || POLIP_VERBOSE_DEBUG) {
         Serial.print("Endpoint: ");
         Serial.println(endpoint);
         Serial.print("TX = ");
@@ -260,7 +260,7 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
     doc.clear();
     retVal.jsonCode = deserializeJson(doc, http.getString());
 
-    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
+    if (debug || POLIP_VERBOSE_DEBUG) {
         serializeJson(doc, buffer);
         Serial.print("RX = ");
         Serial.println(buffer);
