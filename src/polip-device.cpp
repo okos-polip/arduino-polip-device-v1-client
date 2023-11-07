@@ -248,23 +248,23 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint) {
 
     serializeJson(doc, buffer);
 
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    Serial.print("Endpoint: ");
-    Serial.println(endpoint);
-    Serial.print("TX = ");
-    Serial.println(buffer);
-#endif
+    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
+        Serial.print("Endpoint: ");
+        Serial.println(endpoint);
+        Serial.print("TX = ");
+        Serial.println(buffer);
+    }
 
     retVal.httpCode = http.POST(buffer);
 
     doc.clear();
     retVal.jsonCode = deserializeJson(doc, http.getString());
 
-#if defined(POLIP_VERBOSE_DEBUG) && POLIP_VERBOSE_DEBUG
-    serializeJson(doc, buffer);
-    Serial.print("RX = ");
-    Serial.println(buffer);
-#endif
+    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
+        serializeJson(doc, buffer);
+        Serial.print("RX = ");
+        Serial.println(buffer);
+    }
 
     http.end();
 

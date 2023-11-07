@@ -98,6 +98,7 @@ typedef struct _polip_device {
     int keyStrLen = 0;              //! Length of key buffer
     const char* hardwareStr = NULL; //! Hardware version to report to server
     const char* firmwareStr = NULL; //! Firmware version to report to server
+    bool debugMode = true;          //! Enables additional logging to Serial
 } polip_device_t;
 
 //==============================================================================
