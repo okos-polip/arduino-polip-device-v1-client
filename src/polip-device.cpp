@@ -39,8 +39,8 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
         bool skipTag = false);
 static void _packRequest(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, bool skipValue = false, bool skipTag = false);
-static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint, bool debug);
-static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc);
+static _ret_t _sendPostRequest(polip_device_t* dev, JsonDocument& doc, const char* endpoint);
+static void _computeTag(polip_device_t* dev, JsonDocument& doc);
 static void _array2string(uint8_t array[], unsigned int len, char buffer[]);
 
 //==============================================================================
@@ -185,7 +185,7 @@ polip_ret_code_t polip_getErrorSemanticFromCode(polip_device_t* dev, int32_t cod
 static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc, 
         const char* timestamp, const char* endpoint, bool skipValue, bool skipTag) {
     _packRequest(dev, doc, timestamp, skipValue, skipTag);
-    _ret_t ret = _sendPostRequest(doc, endpoint, dev->debugMode);
+    _ret_t ret = _sendPostRequest(dev, doc, endpoint);
 
     if (ret.jsonCode) {
         return POLIP_ERROR_RESPONSE_DESERIALIZATION;
@@ -203,7 +203,7 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
     if (!skipTag && !dev->skipTagCheck) {
         const char* oldTag = doc["tag"];
         doc["tag"] = "0";
-        _computeTag(dev->keyStr, dev->keyStrLen, doc);
+        _computeTag(dev, doc);
 
         if (0 != strcmp(oldTag, doc["tag"])) { // Tag match failed
             return POLIP_ERROR_TAG_MISMATCH;   
@@ -217,8 +217,8 @@ static polip_ret_code_t _requestTemplate(polip_device_t* dev, JsonDocument& doc,
     return POLIP_OK; // Document updates returned by reference
 }
 
-static void _packRequest(polip_device_t* dev, JsonDocument& doc, 
-        const char* timestamp, bool skipValue, bool skipTag) {
+static void _packRequest(polip_device_t* dev, JsonDocument& doc, const char* timestamp, 
+        bool skipValue, bool skipTag) {
 
     doc["serial"] = dev->serialStr; 
     doc["firmware"] = dev->firmwareStr;
@@ -232,38 +232,37 @@ static void _packRequest(polip_device_t* dev, JsonDocument& doc,
     if (!skipTag) {
         doc["tag"] = "0";
         if (!dev->skipTagCheck) {
-            _computeTag(dev->keyStr, dev->keyStrLen, doc);
+            _computeTag(dev, doc);
         }
     }
 }
 
-static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint, bool debug) {
+static _ret_t _sendPostRequest(polip_device_t* dev, JsonDocument& doc, const char* endpoint) {
     _ret_t retVal;
-    char buffer[POLIP_ARBITRARY_MSG_BUFFER_SIZE];
     WiFiClient client;
     HTTPClient http;
 
     http.begin(client, endpoint);
     http.addHeader("Content-Type", "application/json");
 
-    serializeJson(doc, buffer);
+    serializeJson(doc, dev->buffer, (size_t)dev->bufferLen);
 
-    if (debug || POLIP_VERBOSE_DEBUG) {
+    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
         Serial.print("Endpoint: ");
         Serial.println(endpoint);
         Serial.print("TX = ");
-        Serial.println(buffer);
+        Serial.println(dev->buffer);
     }
 
-    retVal.httpCode = http.POST(buffer);
+    retVal.httpCode = http.POST((char*)(dev->buffer));
 
     doc.clear();
     retVal.jsonCode = deserializeJson(doc, http.getString());
 
-    if (debug || POLIP_VERBOSE_DEBUG) {
-        serializeJson(doc, buffer);
+    if (dev->debugMode || POLIP_VERBOSE_DEBUG) {
+        serializeJson(doc, dev->buffer, (size_t)dev->bufferLen);
         Serial.print("RX = ");
-        Serial.println(buffer);
+        Serial.println(dev->buffer);
     }
 
     http.end();
@@ -271,12 +270,10 @@ static _ret_t _sendPostRequest(JsonDocument& doc, const char* endpoint, bool deb
     return retVal;
 }
 
-static void _computeTag(const uint8_t* key, int keyLen, JsonDocument& doc) {
-    char buffer[POLIP_ARBITRARY_MSG_BUFFER_SIZE];
-
-    SHA256HMAC hmac(key, keyLen);
-    serializeJson(doc, buffer);
-    hmac.doUpdate(buffer);
+static void _computeTag(polip_device_t* dev, JsonDocument& doc) {
+    SHA256HMAC hmac(dev->keyStr, dev->keyStrLen);
+    serializeJson(doc, dev->buffer, (size_t)dev->bufferLen);
+    hmac.doUpdate(dev->buffer);
 
     uint8_t authCode[SHA256HMAC_SIZE];
     hmac.doFinal(authCode);

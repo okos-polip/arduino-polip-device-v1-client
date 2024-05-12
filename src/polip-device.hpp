@@ -47,8 +47,8 @@
 #endif
 
 //! Minimum buffer size, larger if state or sense is substatial
-#ifndef POLIP_ARBITRARY_MSG_BUFFER_SIZE
-#define POLIP_ARBITRARY_MSG_BUFFER_SIZE             (512)
+#ifndef POLIP_MIN_ARBITRARY_MSG_BUFFER_SIZE
+#define POLIP_MIN_ARBITRARY_MSG_BUFFER_SIZE         (512)
 #endif
 
 //! Buffer size needed to construct URI's with parameters
@@ -99,6 +99,9 @@ typedef struct _polip_device {
     const char* hardwareStr = NULL; //! Hardware version to report to server
     const char* firmwareStr = NULL; //! Firmware version to report to server
     bool debugMode = true;          //! Enables additional logging to Serial
+    
+    char* buffer = NULL;         //! Internal transmission buffer, must be linked
+    uint16_t bufferLen = 0;         //! Length of transmission buffer
 } polip_device_t;
 
 //==============================================================================
